@@ -1,17 +1,32 @@
 import { auth } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-export function requireAuth(){
-  onAuthStateChanged(auth, (user)=>{
-    if(!user){
+// Sayfaya giriş kontrolü
+export function requireAuth() {
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      // login yoksa index'e at
       window.location.href = "index.html";
-    } else {
-      const el = document.getElementById("currentUser");
-      if(el) el.textContent = user.email || "Yönetici";
+      return;
     }
+
+    // login varsa sağ üst maili yaz
+    const el =
+      document.getElementById("currentUser") ||
+      document.getElementById("userEmail");
+
+    if (el) el.textContent = user.email;
   });
 }
-export function doLogout(){
-  signOut(auth).then(()=> window.location.href="index.html");
+
+// Çıkış fonksiyonu
+export async function logout() {
+  await signOut(auth);
+  window.location.href = "index.html";
 }
-window.logout = doLogout;
+
+// Menüde onclick="logout()" çalışsın diye global'e koyuyoruz
+window.logout = logout;
