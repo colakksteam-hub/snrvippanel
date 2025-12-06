@@ -1,13 +1,86 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <title>Yönetici Paneli</title>
-</head>
-<body style="font-family: Arial; background:#f2f2f2;">
+<!DOCTYPE html><html lang="tr"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SNR VIP | Dashboard</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div>
+    </div>
+    <nav class="nav">
+      <a class="active" href="dashboard.html">🏠 Dashboard</a>
+      <a href="projects.html">🏗️ Proje Paneli</a>
+      <a href="personnel.html">👮 Personel</a>
+      <a href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
 
-<h1>SNR VIP Yönetim Paneli</h1>
-<p>Giriş başarılı! Panel şu anda boş. Bir sonraki adımda modülleri ekleyeceğim.</p>
+  <main class="main">
+    <div class="topbar">
+      <h1 style="margin:0;">Dashboard</h1>
+      <div class="user"><div class="pill" id="currentUser">Yönetici</div></div>
+    </div>
 
-</body>
-</html>
+    <div class="grid">
+      <div class="card"><div class="icon">📌</div><h3>Projeler</h3><div class="big" id="statProjects">0</div></div>
+      <div class="card"><div class="icon">👥</div><h3>Personel</h3><div class="big" id="statPersonnel">0</div></div>
+      <div class="card"><div class="icon">🚙</div><h3>Araç</h3><div class="big" id="statVehicles">0</div></div>
+      <div class="card"><div class="icon">⚠️</div><h3>Son 30 Günde Olay</h3><div class="big" id="statEvents">0</div></div>
+    </div>
+
+    <div class="section">
+      <h2>Son Tutanaklar</h2>
+      <div id="recentDisciplinary" class="list"></div>
+    </div>
+
+    <div class="section">
+      <h2>Servisteki Araçlar</h2>
+      <div id="serviceVehicles" class="list"></div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { requireAuth } from "./guard.js";
+import { listCol, colProjects, colPersonnel, colVehicles } from "./db.js";
+import { fmtDate, badgeStatus } from "./ui.js";
+import { db } from "./firebase.js";
+import { collection, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+requireAuth();
+
+async function load(){
+  const [projects, personnel, vehicles] = await Promise.all([
+    listCol(colProjects), listCol(colPersonnel), listCol(colVehicles)
+  ]);
+  statProjects.textContent = projects.length;
+  statPersonnel.textContent = personnel.length;
+  statVehicles.textContent = vehicles.length;
+
+  const since = new Date(); since.setDate(since.getDate()-30);
+  const evSnap = await getDocs(query(collection(db,"personnel_events"), where("date",">=",since)));
+  statEvents.textContent = evSnap.size;
+
+  const dSnap = await getDocs(query(collection(db,"personnel_events"),
+    where("type","==","tutanak"), orderBy("date","desc"), limit(10)));
+  const items = dSnap.docs.map(d=>({id:d.id,...d.data()}));
+  recentDisciplinary.innerHTML = items.length ? items.map(e=>`
+    <div class="list-item">
+      <div>
+        <div><b>${e.reason||"Tutanak"}</b></div>
+        <div class="meta">${fmtDate(e.date)} • ${e.description||""}</div>
+      </div>
+      <div class="badge red">Tutanak</div>
+    </div>`).join("") : `<div class="card">Henüz tutanak yok.</div>`;
+
+  const serv = vehicles.filter(v=>(v.status||"").toLowerCase()==="serviste");
+  serviceVehicles.innerHTML = serv.length ? serv.map(v=>`
+    <div class="list-item">
+      <div><div><b>${v.plate}</b> • ${v.brandModel||""}</div><div class="meta">KM: ${v.km||"-"}</div></div>
+      ${badgeStatus(v.status)}
+    </div>`).join("") : `<div class="card">Serviste araç yok.</div>`;
+}
+load();
+</script>
+</body></html>

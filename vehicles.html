@@ -1,0 +1,97 @@
+<!DOCTYPE html><html lang="tr"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SNR VIP | Araçlar</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div></div>
+    <nav class="nav">
+      <a href="dashboard.html">🏠 Dashboard</a><a href="projects.html">🏗️ Proje Paneli</a>
+      <a href="personnel.html">👮 Personel</a><a class="active" href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar"><h1 style="margin:0;">Araçlar</h1><div class="user"><div class="pill" id="currentUser">Yönetici</div></div></div>
+    <div class="toolbar">
+      <input id="q" placeholder="Araç ara (plaka/model)"/>
+      <select id="projectFilter"></select>
+      <select id="statusFilter"><option value="">Tüm Durumlar</option><option value="aktif">Aktif</option><option value="serviste">Serviste</option><option value="pasif">Pasif</option></select>
+      <button id="addBtn">+ Araç Ekle</button>
+    </div>
+    <table><thead><tr><th>Plaka</th><th>Model</th><th>Proje</th><th>Durum</th><th>KM</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody></table>
+
+    <div id="formCard" class="card" style="display:none;">
+      <h2 id="formTitle">Yeni Araç</h2>
+      <div class="toolbar">
+        <input id="plate" placeholder="Plaka"/><input id="brandModel" placeholder="Marka/Model"/>
+        <select id="projectId"></select>
+        <select id="status"><option value="aktif">Aktif</option><option value="serviste">Serviste</option><option value="pasif">Pasif</option></select>
+        <input id="km" type="number" placeholder="KM"/>
+        <button id="saveBtn">Kaydet</button><button class="secondary" id="cancelBtn">İptal</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { requireAuth } from "./guard.js";
+import { listCol, addWithTS, updateById, deleteById, colProjects, colVehicles } from "./db.js";
+import { badgeStatus } from "./ui.js";
+
+requireAuth();
+let projects=[], vehicles=[], editingId=null;
+
+function fillProjects(){
+  projectFilter.innerHTML=['<option value="">Tüm Projeler</option>'].concat(projects.map(p=>`<option value="${p.id}">${p.name}</option>`)).join("");
+  projectId.innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+}
+async function load(){
+  projects=await listCol(colProjects);
+  vehicles=await listCol(colVehicles);
+  fillProjects(); render();
+}
+function render(){
+  const text=q.value.toLowerCase(), pf=projectFilter.value, sf=statusFilter.value;
+  const filtered=vehicles.filter(v=>{
+    const mt=(v.plate||"").toLowerCase().includes(text)||(v.brandModel||"").toLowerCase().includes(text);
+    const mp=!pf||v.projectId===pf; const ms=!sf||(v.status||"").toLowerCase()===sf;
+    return mt&&mp&&ms;
+  });
+  tbody.innerHTML=filtered.map(v=>{
+    const proj=projects.find(p=>p.id===v.projectId);
+    return `<tr>
+      <td><b>${v.plate}</b></td><td>${v.brandModel||"-"}</td><td>${proj?.name||"-"}</td>
+      <td>${badgeStatus(v.status)}</td><td>${v.km||0}</td>
+      <td style="text-align:right;">
+        <a class="badge" href="vehicle_detail.html?id=${v.id}">Detay</a>
+        <button class="secondary" data-edit="${v.id}">Düzenle</button>
+        <button class="secondary" data-del="${v.id}">Sil</button>
+      </td></tr>`;
+  }).join("");
+  tbody.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>edit(b.dataset.edit));
+  tbody.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>del(b.dataset.del));
+}
+function edit(id){
+  const v=vehicles.find(x=>x.id===id);
+  editingId=id; formCard.style.display="block"; formTitle.textContent="Araç Düzenle";
+  plate.value=v.plate||""; brandModel.value=v.brandModel||""; status.value=v.status||"aktif";
+  km.value=v.km||0; projectId.value=v.projectId||projects[0]?.id||"";
+}
+async function del(id){ if(confirm("Araç silinsin mi?")){ await deleteById(colVehicles,id); await load(); } }
+
+addBtn.onclick=()=>{ editingId=null; formCard.style.display="block"; formTitle.textContent="Yeni Araç";
+  plate.value=""; brandModel.value=""; status.value="aktif"; km.value=""; projectId.value=projects[0]?.id||""; };
+cancelBtn.onclick=()=>formCard.style.display="none";
+saveBtn.onclick=async ()=>{
+  const data={plate:plate.value.trim().toUpperCase(), brandModel:brandModel.value.trim(),
+    projectId:projectId.value, status:status.value, km:km.value?Number(km.value):0};
+  if(!data.plate) return alert("Plaka boş olamaz");
+  if(editingId) await updateById(colVehicles,editingId,data); else await addWithTS(colVehicles,data);
+  formCard.style.display="none"; await load();
+};
+q.oninput=render; projectFilter.onchange=render; statusFilter.onchange=render;
+load();
+</script>
+</body></html>

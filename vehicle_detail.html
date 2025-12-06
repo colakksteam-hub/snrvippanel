@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="tr"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SNR VIP | Araç Detay</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div></div>
+    <nav class="nav">
+      <a href="dashboard.html">🏠 Dashboard</a><a href="projects.html">🏗️ Proje Paneli</a><a href="personnel.html">👮 Personel</a>
+      <a class="active" href="vehicles.html">🚗 Araç Yönetimi</a><a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:8px;"><a class="badge" href="vehicles.html">← Geri</a><h1 style="margin:0;" id="plateH1">Araç</h1></div>
+      <div class="user"><div class="pill" id="currentUser">Yönetici</div></div>
+    </div>
+
+    <div class="row">
+      <div class="card profile">
+        <div class="kv"><div class="k">Plaka</div><div id="vPlate">-</div></div>
+        <div class="kv"><div class="k">Model</div><div id="vModel">-</div></div>
+        <div class="kv"><div class="k">Proje</div><div id="vProject">-</div></div>
+        <div class="kv"><div class="k">Durum</div><div id="vStatus">-</div></div>
+        <div class="kv"><div class="k">KM</div><div id="vKm">-</div></div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 style="margin:0;">Araç Olay / Servis Geçmişi</h2>
+            <button id="addEventBtn">+ Event Ekle</button>
+          </div>
+          <div id="events" class="list" style="margin-top:10px;"></div>
+        </div>
+
+        <div id="eventForm" class="card" style="display:none;margin-top:12px;">
+          <h3>Yeni Event</h3>
+          <div class="toolbar">
+            <select id="eventType"><option value="servis">Servis/Bakım</option><option value="gorev_degisim">Görev Değişimi</option><option value="kaza">Kaza/Hasar</option><option value="bakim">Periyodik Bakım</option></select>
+            <input id="eventDate" type="date"/><input id="eventReason" placeholder="Sebep / Başlık"/>
+            <textarea id="eventDesc" placeholder="Detay" rows="2"></textarea><input id="eventKm" type="number" placeholder="KM (ops.)"/>
+            <button id="saveEventBtn">Kaydet</button><button class="secondary" id="cancelEventBtn">İptal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { requireAuth } from "./guard.js";
+import { qsParam, fmtDate, badgeStatus } from "./ui.js";
+import { getById, listCol, addWithTS, deleteById, colVehicles, colProjects, colVehicleEvents } from "./db.js";
+import { query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+requireAuth();
+const id=qsParam("id");
+let vehicle=null, projects=[];
+
+addEventBtn.onclick=()=>{ eventForm.style.display="block"; eventDate.value=new Date().toISOString().slice(0,10); eventReason.value=""; eventDesc.value=""; eventKm.value=vehicle?.km||""; };
+cancelEventBtn.onclick=()=> eventForm.style.display="none";
+saveEventBtn.onclick=async ()=>{
+  await addWithTS(colVehicleEvents,{vehicleId:id, projectId:vehicle.projectId||null, type:eventType.value,
+    date:eventDate.value?new Date(eventDate.value):new Date(), reason:eventReason.value.trim(), description:eventDesc.value.trim(),
+    kmAtEvent:eventKm.value?Number(eventKm.value):null});
+  eventForm.style.display="none"; await loadEvents();
+};
+
+function renderVehicle(){
+  plateH1.textContent=vehicle.plate||"Araç"; vPlate.textContent=vehicle.plate||"-"; vModel.textContent=vehicle.brandModel||"-";
+  const proj=projects.find(p=>p.id===vehicle.projectId); vProject.textContent=proj?.name||"-";
+  vStatus.innerHTML=badgeStatus(vehicle.status); vKm.textContent=vehicle.km||0;
+}
+async function loadEvents(){
+  const snap=await getDocs(query(colVehicleEvents, where("vehicleId","==",id), orderBy("date","desc")));
+  const items=snap.docs.map(d=>({id:d.id,...d.data()}));
+  events.innerHTML=items.length?items.map(e=>`
+    <div class="list-item">
+      <div><div><b>${e.reason||e.type}</b> <span class="badge">${e.type}</span></div>
+      <div class="meta">${fmtDate(e.date)} • ${e.description||""} ${e.kmAtEvent? "• KM:"+e.kmAtEvent:""}</div></div>
+      <div><button class="secondary" data-del="${e.id}">Sil</button></div>
+    </div>`).join(""):`<div class="card">Event yok.</div>`;
+  events.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("Event silinsin mi?")){await deleteById(colVehicleEvents,b.dataset.del); await loadEvents();}});
+}
+async function load(){
+  projects=await listCol(colProjects);
+  vehicle=await getById(colVehicles,id);
+  if(!vehicle){ alert("Araç bulunamadı"); location.href="vehicles.html"; return; }
+  renderVehicle(); loadEvents();
+}
+load();
+</script>
+</body></html>

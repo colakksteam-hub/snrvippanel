@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="tr"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SNR VIP | Personel Detay</title><link rel="stylesheet" href="styles.css"/></head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div></div>
+    <nav class="nav">
+      <a href="dashboard.html">🏠 Dashboard</a><a href="projects.html">🏗️ Proje Paneli</a>
+      <a class="active" href="personnel.html">👮 Personel</a><a href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:8px;"><a class="badge" href="personnel.html">← Geri</a><h1 style="margin:0;" id="nameH1">Personel</h1></div>
+      <div class="user"><div class="pill" id="currentUser">Yönetici</div></div>
+    </div>
+
+    <div class="row">
+      <div class="card profile">
+        <img id="photo" src="" alt="photo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect width=%22400%22 height=%22300%22 fill=%22%23f3f4f6%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2220%22>Foto Yok</text></svg>'">
+        <div class="kv"><div class="k">ID</div><div id="pid">-</div></div>
+        <div class="kv"><div class="k">Proje</div><div id="pProject">-</div></div>
+        <div class="kv"><div class="k">Unvan</div><div id="pTitle">-</div></div>
+        <div class="kv"><div class="k">Durum</div><div id="pStatus">-</div></div>
+        <div class="kv"><div class="k">İşe Giriş</div><div id="pStart">-</div></div>
+        <div class="kv"><div class="k">Telefon</div><div id="pPhone">-</div></div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 style="margin:0;">Sicil / Event Geçmişi</h2>
+            <button id="addEventBtn">+ Event Ekle</button>
+          </div>
+          <div id="events" class="list" style="margin-top:10px;"></div>
+        </div>
+
+        <div id="eventForm" class="card" style="display:none;margin-top:12px;">
+          <h3>Yeni Event</h3>
+          <div class="toolbar">
+            <select id="eventType"><option value="tutanak">Tutanak</option><option value="izin">İzin/Devamsızlık</option><option value="gorev_degisim">Görev Değişimi</option><option value="performans">Performans/Olumlu</option></select>
+            <input id="eventDate" type="date"/><input id="eventReason" placeholder="Sebep / Başlık"/>
+            <textarea id="eventDesc" placeholder="Detay" rows="2"></textarea>
+            <button id="saveEventBtn">Kaydet</button><button class="secondary" id="cancelEventBtn">İptal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { requireAuth } from "./guard.js";
+import { qsParam, fmtDate, badgeStatus } from "./ui.js";
+import { getById, listCol, addWithTS, deleteById, colPersonnel, colProjects, colPersonnelEvents } from "./db.js";
+import { query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+requireAuth();
+const id=qsParam("id");
+let person=null, projects=[];
+
+addEventBtn.onclick=()=>{ eventForm.style.display="block"; eventDate.value=new Date().toISOString().slice(0,10); eventReason.value=""; eventDesc.value=""; };
+cancelEventBtn.onclick=()=> eventForm.style.display="none";
+saveEventBtn.onclick=async ()=>{
+  await addWithTS(colPersonnelEvents,{personId:id, projectId:person.projectId||null, type:eventType.value,
+    date:eventDate.value?new Date(eventDate.value):new Date(), reason:eventReason.value.trim(), description:eventDesc.value.trim()});
+  eventForm.style.display="none"; await loadEvents();
+};
+
+function renderPerson(){
+  nameH1.textContent=person.fullName||"Personel"; pid.textContent=person.id;
+  const proj=projects.find(p=>p.id===person.projectId);
+  pProject.textContent=proj?.name||"-"; pTitle.textContent=person.title||"-";
+  pStatus.innerHTML=badgeStatus(person.status); pStart.textContent=fmtDate(person.startDate);
+  pPhone.textContent=person.phone||"-"; if(person.photoUrl) photo.src=person.photoUrl;
+}
+async function loadEvents(){
+  const snap=await getDocs(query(colPersonnelEvents, where("personId","==",id), orderBy("date","desc")));
+  const items=snap.docs.map(d=>({id:d.id,...d.data()}));
+  events.innerHTML=items.length?items.map(e=>`
+    <div class="list-item">
+      <div><div><b>${e.reason||e.type}</b> <span class="badge">${e.type}</span></div>
+      <div class="meta">${fmtDate(e.date)} • ${e.description||""}</div></div>
+      <div><button class="secondary" data-del="${e.id}">Sil</button></div>
+    </div>`).join(""):`<div class="card">Event yok.</div>`;
+  events.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{ if(confirm("Event silinsin mi?")){await deleteById(colPersonnelEvents,b.dataset.del); await loadEvents();}});
+}
+async function load(){
+  projects=await listCol(colProjects);
+  person=await getById(colPersonnel,id);
+  if(!person){ alert("Personel bulunamadı"); location.href="personnel.html"; return; }
+  renderPerson(); loadEvents();
+}
+load();
+</script>
+</body></html>
