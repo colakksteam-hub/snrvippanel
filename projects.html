@@ -57,4 +57,202 @@
   import {
     collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
     query, orderBy
-  } from "https://www.gst
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  requireAuth();
+
+  const colRef = collection(db, "projects");
+
+  const listEl = document.getElementById("projectsList");
+
+  let projects = [];
+  let addRowOpen = false;
+
+  const escapeHtml = (s="") =>
+    s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function rowTemplate(p){
+    return `
+      <div class="row">
+        <div class="cell"><b>${escapeHtml(p.name)}</b></div>
+        <div class="cell">${escapeHtml(p.type || "-")}</div>
+        <div class="cell">${escapeHtml(p.location || "-")}</div>
+        <div class="cell">${escapeHtml(p.client || "-")}</div>
+        <div class="cell">
+          <span class="badge ${p.isActive ? "green":"gray"}">
+            ${p.isActive ? "Aktif":"Pasif"}
+          </span>
+        </div>
+        <div class="cell actions">
+          <button class="btn small edit" data-id="${p.id}">Düzenle</button>
+          <button class="btn small danger del" data-id="${p.id}">Sil</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function addRowTemplate(){
+    return `
+    <div class="row new-row">
+      <div class="cell"><input id="pName" placeholder="Proje adı" /></div>
+      <div class="cell">
+        <select id="pType">
+          <option value="">Tür seç</option>
+          <option value="fabrika">Fabrika</option>
+          <option value="santiye">Şantiye</option>
+          <option value="site">Site</option>
+          <option value="vip">VIP</option>
+        </select>
+      </div>
+      <div class="cell"><input id="pLocation" placeholder="Lokasyon" /></div>
+      <div class="cell"><input id="pClient" placeholder="Müşteri (ops.)" /></div>
+      <div class="cell">
+        <select id="pActive">
+          <option value="true">Aktif</option>
+          <option value="false">Pasif</option>
+        </select>
+      </div>
+      <div class="cell actions">
+        <button class="btn small primary" id="saveBtn">Kaydet</button>
+        <button class="btn small" id="cancelBtn">İptal</button>
+      </div>
+    </div>`;
+  }
+
+  function filtered(){
+    const qEl = document.getElementById("q");
+    const typeFilterEl = document.getElementById("typeFilter");
+
+    const q = (qEl?.value || "").toLowerCase().trim();
+    const tf = (typeFilterEl?.value || "").trim();
+
+    return projects.filter(p=>{
+      const okQ = !q || (p.name||"").toLowerCase().includes(q);
+      const okT = !tf || (p.type||"") === tf;
+      return okQ && okT;
+    });
+  }
+
+  function render(){
+    const items = filtered();
+    listEl.innerHTML = `
+      ${addRowOpen ? addRowTemplate() : ""}
+      ${items.map(rowTemplate).join("")}
+    `;
+
+    if(addRowOpen){
+      document.getElementById("saveBtn").onclick = saveNew;
+      document.getElementById("cancelBtn").onclick = closeAddRow;
+    }
+
+    listEl.querySelectorAll(".del").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.id;
+        if(confirm("Projeyi silmek istiyor musun?")){
+          await deleteDoc(doc(db,"projects",id));
+          await load();
+        }
+      };
+    });
+
+    listEl.querySelectorAll(".edit").forEach(btn=>{
+      btn.onclick = ()=> openEdit(btn.dataset.id);
+    });
+  }
+
+  function openAddRow(){ addRowOpen = true; render(); }
+  function closeAddRow(){ addRowOpen = false; render(); }
+
+  async function saveNew(){
+    const name = (document.getElementById("pName").value || "").trim();
+    const type = (document.getElementById("pType").value || "").trim();
+    const location = (document.getElementById("pLocation").value || "").trim();
+    const client = (document.getElementById("pClient").value || "").trim();
+    const isActive = document.getElementById("pActive").value === "true";
+
+    if(!name){ alert("Proje adı boş olamaz"); return; }
+
+    await addDoc(colRef, {
+      name, type, location, client, isActive,
+      createdAt: new Date()
+    });
+
+    addRowOpen = false;
+    await load();
+  }
+
+  function openEdit(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+
+    addRowOpen = false;
+
+    listEl.innerHTML = `
+      <div class="row new-row">
+        <div class="cell"><input id="eName" value="${escapeHtml(p.name)}"/></div>
+        <div class="cell">
+          <select id="eType">
+            <option value="">Tür seç</option>
+            <option value="fabrika" ${p.type==="fabrika"?"selected":""}>Fabrika</option>
+            <option value="santiye" ${p.type==="santiye"?"selected":""}>Şantiye</option>
+            <option value="site" ${p.type==="site"?"selected":""}>Site</option>
+            <option value="vip" ${p.type==="vip"?"selected":""}>VIP</option>
+          </select>
+        </div>
+        <div class="cell"><input id="eLocation" value="${escapeHtml(p.location||"")}"/></div>
+        <div class="cell"><input id="eClient" value="${escapeHtml(p.client||"")}"/></div>
+        <div class="cell">
+          <select id="eActive">
+            <option value="true" ${p.isActive?"selected":""}>Aktif</option>
+            <option value="false" ${!p.isActive?"selected":""}>Pasif</option>
+          </select>
+        </div>
+        <div class="cell actions">
+          <button class="btn small primary" id="updateBtn">Güncelle</button>
+          <button class="btn small" id="cancelEditBtn">İptal</button>
+        </div>
+      </div>
+      ${projects.filter(x=>x.id!==id).map(rowTemplate).join("")}
+    `;
+
+    document.getElementById("updateBtn").onclick = async ()=>{
+      const name = document.getElementById("eName").value.trim();
+      const type = document.getElementById("eType").value.trim();
+      const location = document.getElementById("eLocation").value.trim();
+      const client = document.getElementById("eClient").value.trim();
+      const isActive = document.getElementById("eActive").value === "true";
+      if(!name){ alert("Proje adı boş olamaz"); return; }
+
+      await updateDoc(doc(db,"projects",id), { name, type, location, client, isActive });
+      await load();
+    };
+
+    document.getElementById("cancelEditBtn").onclick = render;
+  }
+
+  async function load(){
+    const snap = await getDocs(query(colRef, orderBy("createdAt","desc")));
+    projects = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    render();
+  }
+
+  // ✅ DOM hazır olunca başlat
+  window.addEventListener("DOMContentLoaded", () => {
+    const addBtn = document.getElementById("addBtn");
+    const qEl = document.getElementById("q");
+    const typeFilterEl = document.getElementById("typeFilter");
+
+    if(!addBtn || !listEl){
+      console.error("addBtn veya projectsList bulunamadı");
+      return;
+    }
+
+    addBtn.onclick = openAddRow;
+    if(qEl) qEl.oninput = render;
+    if(typeFilterEl) typeFilterEl.onchange = render;
+
+    load();
+  });
+</script>
+</body>
+</html>
