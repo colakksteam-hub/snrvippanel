@@ -1,102 +1,206 @@
-<!DOCTYPE html><html lang="tr"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SNR VIP | Projeler</title><link rel="stylesheet" href="styles.css"/></head>
-<body>
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand"><div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div></div>
-    <nav class="nav">
-      <a href="dashboard.html">🏠 Dashboard</a>
-      <a class="active" href="projects.html">🏗️ Proje Paneli</a>
-      <a href="personnel.html">👮 Personel</a>
-      <a href="vehicles.html">🚗 Araç Yönetimi</a>
-      <a href="#" onclick="logout()">🚪 Çıkış</a>
-    </nav>
-  </aside>
-  <main class="main">
-    <div class="topbar"><h1 style="margin:0;">Projeler</h1><div class="user"><div class="pill" id="currentUser">Yönetici</div></div></div>
-    <div class="toolbar">
-      <input id="q" placeholder="Proje ara"/>
-      <select id="typeFilter">
-        <option value="">Tümü</option><option value="fabrika">Fabrika</option><option value="şantiye">Şantiye</option>
-        <option value="site">Site</option><option value="vip">VIP</option>
-      </select>
-      <button id="addBtn">+ Proje Ekle</button>
-    </div>
-    <table><thead><tr><th>Proje</th><th>Tür</th><th>Lokasyon</th><th>Durum</th><th></th></tr></thead>
-      <tbody id="tbody"></tbody></table>
-
-    <div id="formCard" class="card" style="display:none;">
-      <h2 id="formTitle">Yeni Proje</h2>
-      <div class="toolbar">
-        <input id="name" placeholder="Proje adı"/>
-        <select id="type"><option value="fabrika">Fabrika</option><option value="şantiye">Şantiye</option><option value="site">Site</option><option value="vip">VIP</option></select>
-        <input id="location" placeholder="Lokasyon"/><input id="client" placeholder="Müşteri (ops.)"/>
-        <select id="isActive"><option value="true">Aktif</option><option value="false">Pasif</option></select>
-        <button id="saveBtn">Kaydet</button><button class="secondary" id="cancelBtn">İptal</button>
-      </div>
-    </div>
-  </main>
-</div>
-
 <script type="module">
-import { requireAuth } from "./guard.js";
-import { listCol, addWithTS, updateById, deleteById, colProjects } from "./db.js";
+  import { requireAuth } from "./guard.js";
+  import { db } from "./firebase.js";
+  import {
+    collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
+    query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-requireAuth();
-let projects=[], editingId=null;
+  requireAuth();
 
-async function load(){
-  projects = await listCol(colProjects);
-  projects.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  render();
-}
-function render(){
-  const text=q.value.toLowerCase();
-  const tf=typeFilter.value;
-  const filtered = projects.filter(p=>{
-    const mt=(p.name||"").toLowerCase().includes(text)||
-             (p.type||"").toLowerCase().includes(text)||
-             (p.location||"").toLowerCase().includes(text);
-    const mty=!tf || p.type===tf;
-    return mt && mty;
-  });
-  tbody.innerHTML = filtered.map(p=>`
-    <tr>
-      <td><b>${p.name}</b></td><td>${p.type||"-"}</td><td>${p.location||"-"}</td>
-      <td>${p.isActive?'<span class="badge green">Aktif</span>':'<span class="badge">Pasif</span>'}</td>
-      <td style="text-align:right;">
-        <button class="secondary" data-edit="${p.id}">Düzenle</button>
-        <button class="secondary" data-del="${p.id}">Sil</button>
-      </td>
-    </tr>`).join("");
+  const colRef = collection(db, "projects");
 
-  tbody.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>edit(b.dataset.edit));
-  tbody.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>del(b.dataset.del));
-}
-function edit(id){
-  const p=projects.find(x=>x.id===id);
-  editingId=id; formCard.style.display="block"; formTitle.textContent="Proje Düzenle";
-  name.value=p.name||""; type.value=p.type||"fabrika"; location.value=p.location||"";
-  client.value=p.client||""; isActive.value=String(!!p.isActive);
-}
-async function del(id){
-  if(confirm("Projeyi silmek istiyor musun?")){
-    await deleteById(colProjects,id); await load();
+  const addBtn = document.getElementById("addBtn");
+  const listEl =
+    document.getElementById("list") ||
+    document.getElementById("projectsList") ||
+    document.querySelector(".list");
+
+  let projects = [];
+  let addRowOpen = false;
+
+  function escapeHtml(s=""){
+    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
-}
 
-addBtn.onclick=()=>{ editingId=null; formCard.style.display="block"; formTitle.textContent="Yeni Proje";
-  name.value=""; type.value="fabrika"; location.value=""; client.value=""; isActive.value="true"; };
-cancelBtn.onclick=()=>formCard.style.display="none";
-saveBtn.onclick=async ()=>{
-  const data={name:name.value.trim(), type:type.value, location:location.value.trim(),
-              client:client.value.trim(), isActive:isActive.value==="true"};
-  if(!data.name) return alert("Proje adı boş olamaz");
-  if(editingId) await updateById(colProjects,editingId,data); else await addWithTS(colProjects,data);
-  formCard.style.display="none"; await load();
-};
-q.oninput=render; typeFilter.onchange=render;
-load();
+  function rowTemplate(p){
+    return `
+      <div class="row">
+        <div class="cell"><b>${escapeHtml(p.name)}</b></div>
+        <div class="cell">${escapeHtml(p.type || "-")}</div>
+        <div class="cell">${escapeHtml(p.location || "-")}</div>
+        <div class="cell">${escapeHtml(p.client || "-")}</div>
+        <div class="cell">
+          <span class="badge ${p.isActive ? "green":"gray"}">
+            ${p.isActive ? "Aktif":"Pasif"}
+          </span>
+        </div>
+        <div class="cell actions">
+          <button class="btn small edit" data-id="${p.id}">Düzenle</button>
+          <button class="btn small danger del" data-id="${p.id}">Sil</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function addRowTemplate(){
+    return `
+    <div class="row new-row" id="newRow">
+      <div class="cell">
+        <input id="pName" placeholder="Proje adı" />
+      </div>
+      <div class="cell">
+        <select id="pType">
+          <option value="">Tür seç</option>
+          <option value="fabrika">Fabrika</option>
+          <option value="santiye">Şantiye</option>
+          <option value="site">Site</option>
+          <option value="vip">VIP</option>
+        </select>
+      </div>
+      <div class="cell">
+        <input id="pLocation" placeholder="Lokasyon" />
+      </div>
+      <div class="cell">
+        <input id="pClient" placeholder="Müşteri (ops.)" />
+      </div>
+      <div class="cell">
+        <select id="pActive">
+          <option value="true">Aktif</option>
+          <option value="false">Pasif</option>
+        </select>
+      </div>
+      <div class="cell actions">
+        <button class="btn small primary" id="saveBtn">Kaydet</button>
+        <button class="btn small" id="cancelBtn">İptal</button>
+      </div>
+    </div>`;
+  }
+
+  function render(){
+    if(!listEl) return;
+
+    listEl.innerHTML = `
+      ${addRowOpen ? addRowTemplate() : ""}
+      ${projects.map(rowTemplate).join("")}
+    `;
+
+    if(addRowOpen){
+      document.getElementById("saveBtn").onclick = saveNew;
+      document.getElementById("cancelBtn").onclick = closeAddRow;
+    }
+
+    listEl.querySelectorAll(".del").forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.id;
+        if(confirm("Projeyi silmek istiyor musun?")){
+          await deleteDoc(doc(db,"projects",id));
+          await load();
+        }
+      };
+    });
+
+    listEl.querySelectorAll(".edit").forEach(btn=>{
+      btn.onclick = ()=> openEdit(btn.dataset.id);
+    });
+  }
+
+  function openAddRow(){
+    addRowOpen = true;
+    render();
+  }
+
+  function closeAddRow(){
+    addRowOpen = false;
+    render();
+  }
+
+  async function saveNew(){
+    const nameEl = document.getElementById("pName");
+    const typeEl = document.getElementById("pType");
+    const locEl  = document.getElementById("pLocation");
+    const cliEl  = document.getElementById("pClient");
+    const actEl  = document.getElementById("pActive");
+
+    const name = (nameEl?.value || "").trim();
+    const type = (typeEl?.value || "").trim();
+    const location = (locEl?.value || "").trim();
+    const client = (cliEl?.value || "").trim();
+    const isActive = (actEl?.value || "true") === "true";
+
+    if(!name){
+      alert("Proje adı boş olamaz");
+      return;
+    }
+
+    await addDoc(colRef, {
+      name, type, location, client,
+      isActive,
+      createdAt: new Date()
+    });
+
+    addRowOpen = false;
+    await load();
+  }
+
+  function openEdit(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+
+    const row = document.createElement("div");
+    row.className = "row edit-row";
+    row.innerHTML = `
+      <div class="cell"><input id="eName" value="${escapeHtml(p.name)}"/></div>
+      <div class="cell">
+        <select id="eType">
+          <option value="">Tür seç</option>
+          <option value="fabrika" ${p.type==="fabrika"?"selected":""}>Fabrika</option>
+          <option value="santiye" ${p.type==="santiye"?"selected":""}>Şantiye</option>
+          <option value="site" ${p.type==="site"?"selected":""}>Site</option>
+          <option value="vip" ${p.type==="vip"?"selected":""}>VIP</option>
+        </select>
+      </div>
+      <div class="cell"><input id="eLocation" value="${escapeHtml(p.location||"")}"/></div>
+      <div class="cell"><input id="eClient" value="${escapeHtml(p.client||"")}"/></div>
+      <div class="cell">
+        <select id="eActive">
+          <option value="true" ${p.isActive?"selected":""}>Aktif</option>
+          <option value="false" ${!p.isActive?"selected":""}>Pasif</option>
+        </select>
+      </div>
+      <div class="cell actions">
+        <button class="btn small primary" id="updateBtn">Güncelle</button>
+        <button class="btn small" id="cancelEditBtn">İptal</button>
+      </div>
+    `;
+
+    // listeyi yeniden çizip en üste edit formunu koy
+    addRowOpen = false;
+    listEl.innerHTML = row.outerHTML + projects.filter(x=>x.id!==id).map(rowTemplate).join("");
+
+    document.getElementById("updateBtn").onclick = async ()=>{
+      const name = document.getElementById("eName").value.trim();
+      const type = document.getElementById("eType").value.trim();
+      const location = document.getElementById("eLocation").value.trim();
+      const client = document.getElementById("eClient").value.trim();
+      const isActive = document.getElementById("eActive").value === "true";
+      if(!name){ alert("Proje adı boş olamaz"); return; }
+
+      await updateDoc(doc(db,"projects",id), {
+        name, type, location, client, isActive
+      });
+      await load();
+    };
+
+    document.getElementById("cancelEditBtn").onclick = render;
+  }
+
+  async function load(){
+    const snap = await getDocs(query(colRef, orderBy("createdAt","desc")));
+    projects = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    render();
+  }
+
+  addBtn.onclick = openAddRow;
+  load();
 </script>
-</body></html>
