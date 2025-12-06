@@ -1,23 +1,47 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-<meta charset="UTF-8">
-<title>SNR VIP Panel</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
- body{font-family:Arial;margin:0;background:#f4f4f4;}
- header{background:#111;color:#fff;padding:15px;font-size:20px;}
- .box{background:#fff;margin:20px;padding:20px;border-radius:8px;box-shadow:0 0 10px #0002;}
- a.btn{display:block;background:#007bff;color:#fff;padding:12px;text-align:center;margin-top:10px;border-radius:6px;text-decoration:none;}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNR VIP | Giriş</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    input {
+      padding: 12px;
+      margin: 6px;
+      width: 260px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+    button {
+      padding: 12px 25px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
-<header>SNR VIP Güvenlik Paneli</header>
-<div class="box">
-<h2>Hoşgeldiniz</h2>
-<p>Bu panel demo başlangıç sürümüdür.</p>
-<a class="btn" href="#">Giriş Yap</a>
-</div>
+
+  <h2>SNR VIP Güvenlik Paneli</h2>
+  <input id="email" type="email" placeholder="E-mail">
+  <input id="password" type="password" placeholder="Şifre">
+  <button onclick="login()">Giriş Yap</button>
+
+  <script type="module" src="auth.js"></script>
 </body>
 </html>
