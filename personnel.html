@@ -131,16 +131,20 @@
   let projects  = [];
   let editingId = null;
 
-  const escapeHtml = (s="") =>
-    s.replace(/[&<>"']/g, m => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[m]));
+ // Güvenli HTML kaçış
+const escapeHtml = (s = "") =>
+  String(s).replace(/[&<>"']/g, m => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
 
-  function titleLabel(v){
-  return v || "-";  // artık direkt string kaydediyoruz
+// Ünvan etiketi (string olarak kaydediyoruz)
+function titleLabel(v){
+  return v || "-";
 }
-
-  
 
   function getProjectName(pid){
     const p = projects.find(x => x.id === pid);
