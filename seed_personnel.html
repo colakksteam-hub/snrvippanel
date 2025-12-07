@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>SNR VIP | Personel Seed</title>
+</head>
+<body>
+  <h2>Personel seed çalışıyor... Sayfayı kapatma.</h2>
+
+  <script type="module">
+    import { db } from "./firebase.js";
+    import {
+      collection, addDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const colRef = collection(db, "personnel");
+
+    const people = [
+      { name: "SELAHATTİN ENSAL", title: "VARDİYA AMİRİ" },
+      { name: "MUHAMMET ÇINAR",   title: "VARDİYA AMİRİ" },
+
+      { name: "CİHAN ARSLAN",       title: "DANIŞMAN" },
+      { name: "ATTİLA UZANAY",      title: "DANIŞMAN" },
+      { name: "ONUR ÇOLAK",         title: "DANIŞMAN" },
+
+      { name: "İBRAHİM IŞIK",       title: "DANIŞMAN" },
+      { name: "İZZET BOZUKLUHAN",   title: "DANIŞMAN" },
+      { name: "GÖKHAN İPEK",        title: "DANIŞMAN" },
+      { name: "MEHMET TAHA ASLAN",  title: "DANIŞMAN" },
+      { name: "ARDA GÖKKAYA",       title: "DANIŞMAN" },
+
+      { name: "AHMET DOĞAN",        title: "DANIŞMAN" },
+      { name: "AHMET HOROZ",        title: "DANIŞMAN" },
+      { name: "ÖMER BAYDAR",        title: "DANIŞMAN" },
+      { name: "GÜRKAN TORZUK",      title: "DANIŞMAN" },
+
+      { name: "EMRE ATEŞ",          title: "DANIŞMAN" },
+      { name: "EMRE ÇAKMAK",        title: "DANIŞMAN" },
+      { name: "OĞUZHAN YILDIRIM",   title: "DANIŞMAN" },
+      { name: "MAZLUM KABALA",      title: "DANIŞMAN" },
+
+      { name: "MAHSUN ÇETİN",       title: "DANIŞMAN" },
+      { name: "EKREM GÜLER",        title: "DANIŞMAN" },
+      { name: "HARUN YORGUN",       title: "DANIŞMAN" },
+      { name: "CİHAN FARUK ATAŞ",   title: "DANIŞMAN" },
+    ];
+
+    let ok = 0;
+
+    for (const p of people) {
+      await addDoc(colRef, {
+        name: p.name,
+        fullName: p.name,
+        title: p.title,
+        status: "aktif",
+        projectId: "",
+        projectName: "",
+        startDate: null,
+        phone: "",
+        createdAt: serverTimestamp()
+      });
+      ok++;
+      console.log("Eklendi:", p.name);
+    }
+
+    alert("✅ Seed bitti. Eklenen personel: " + ok);
+    document.body.innerHTML += "<h3>✅ Seed bitti. Eklenen personel: "+ok+"</h3>";
+  </script>
+</body>
+</html>
