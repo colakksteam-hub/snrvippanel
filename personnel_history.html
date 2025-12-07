@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SNR VIP | Personel Detay</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .tabs{display:flex;gap:8px;margin:10px 0;}
+    .tab{padding:8px 12px;border-radius:10px;cursor:pointer;background:#11182710;}
+    .tab.active{background:#111827;color:#fff;}
+    .hidden{display:none;}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  </style>
+</head>
+
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">SNR</div>
+      <div>
+        <div class="title">SNR VIP</div>
+        <div class="sub">Güvenlik & Koruma</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html">🏠 Dashboard</a>
+      <a href="projects.html">🏗️ Proje Paneli</a>
+      <a href="personnel.html" class="active">👮 Personel</a>
+      <a href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn small" id="backBtn">← Geri</button>
+        <h1 style="margin:0;" id="pHeader">Personel Detay</h1>
+      </div>
+      <div class="user"><div class="pill" id="currentUser">Yönetici</div></div>
+    </div>
+
+    <!-- personel özet kartı -->
+    <div class="card" id="summaryCard">
+      <div class="grid-3">
+        <div><b>Ad Soyad</b><div id="sumName">-</div></div>
+        <div><b>Ünvan</b><div id="sumTitle">-</div></div>
+        <div><b>Durum</b><div id="sumStatus">-</div></div>
+        <div><b>Proje</b><div id="sumProject">-</div></div>
+        <div><b>İşe Giriş</b><div id="sumStartDate">-</div></div>
+        <div><b>Telefon</b><div id="sumPhone">-</div></div>
+      </div>
+    </div>
+
+    <!-- tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="tutanak">📄 Tutanaklar</div>
+      <div class="tab" data-tab="izin">🗓️ İzinler</div>
+      <div class="tab" data-tab="vardiya">🕒 Vardiya / Görev</div>
+    </div>
+
+    <!-- TUTANAKLAR -->
+    <section id="tab-tutanak">
+      <div class="card">
+        <h2 style="margin-top:0;">Yeni Tutanak</h2>
+        <div class="grid-3">
+          <input id="dDate" type="date" />
+          <input id="dReason" placeholder="Sebep / Konu"/>
+          <input id="dPenalty" placeholder="Ceza / Sonuç (ops.)"/>
+        </div>
+        <div style="margin-top:8px;">
+          <textarea id="dNote" placeholder="Açıklama (ops.)" style="width:100%;min-height:80px;"></textarea>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn primary" id="dSave">Kaydet</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Tutanak Geçmişi</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th><th>Sebep</th><th>Ceza/Sonuç</th><th>Açıklama</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="dTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- İZİNLER -->
+    <section id="tab-izin" class="hidden">
+      <div class="card">
+        <h2 style="margin-top:0;">Yeni İzin</h2>
+        <div class="grid-3">
+          <input id="lFrom" type="date" />
+          <input id="lTo" type="date" />
+          <select id="lType">
+            <option value="yillik">Yıllık</option>
+            <option value="rapor">Rapor</option>
+            <option value="ucretsiz">Ücretsiz</option>
+            <option value="mazeret">Mazeret</option>
+          </select>
+        </div>
+        <div style="margin-top:8px;">
+          <textarea id="lNote" placeholder="Not (ops.)" style="width:100%;min-height:60px;"></textarea>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn primary" id="lSave">Kaydet</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">İzin Geçmişi</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Başlangıç</th><th>Bitiş</th><th>Tür</th><th>Not</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="lTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VARDİYA/GÖREV -->
+    <section id="tab-vardiya" class="hidden">
+      <div class="card">
+        <h2 style="margin-top:0;">Yeni Vardiya / Görev Kaydı</h2>
+        <div class="grid-3">
+          <input id="sDate" type="date" />
+          <input id="sRole" placeholder="Görev / Nokta / Vardiya"/>
+          <input id="sProject" placeholder="Proje (ops.)"/>
+        </div>
+        <div style="margin-top:8px;">
+          <textarea id="sNote" placeholder="Not (ops.)" style="width:100%;min-height:60px;"></textarea>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn primary" id="sSave">Kaydet</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0;">Vardiya / Görev Geçmişi</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th><th>Görev</th><th>Proje</th><th>Not</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="sTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script type="module">
+  import { requireAuth } from "./guard.js";
+  import { db } from "./firebase.js";
+  import {
+    doc, getDoc,
+    collection, getDocs, addDoc, deleteDoc,
+    query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  requireAuth();
+
+  // URL param: ?id=PERSONNEL_ID
+  const params = new URLSearchParams(location.search);
+  const personnelId = params.get("id");
+  if(!personnelId){
+    alert("Personel ID yok!");
+    location.href = "personnel.html";
+  }
+
+  // refs
+  const personRef = doc(db, "personnel", personnelId);
+  const disciplinaryRef = collection(db, "personnel", personnelId, "disciplinary"); // tutanaklar
+  const leavesRef = collection(db, "personnel", personnelId, "leaves");            // izinler
+  const shiftsRef = collection(db, "personnel", personnelId, "shifts");            // vardiya/görev
+
+  // helpers
+  const escapeHtml = (s="") =>
+    String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
+
+  function getName(raw){
+    return String(
+      raw.name ?? raw.adSoyad ?? raw.fullName ?? raw.full_name ??
+      raw.fullname ?? raw.isim ?? raw.ad ?? ""
+    ).trim();
+  }
+
+  // header fields
+  const sumName = document.getElementById("sumName");
+  const sumTitle = document.getElementById("sumTitle");
+  const sumStatus = document.getElementById("sumStatus");
+  const sumProject = document.getElementById("sumProject");
+  const sumStartDate = document.getElementById("sumStartDate");
+  const sumPhone = document.getElementById("sumPhone");
+  const pHeader = document.getElementById("pHeader");
+
+  document.getElementById("backBtn").onclick = () => history.back();
+
+  // tabs
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.onclick = ()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      const key = t.dataset.tab;
+      document.querySelectorAll("section[id^='tab-']").forEach(s=>s.classList.add("hidden"));
+      document.getElementById("tab-"+key).classList.remove("hidden");
+    };
+  });
+
+  // ---- Load person summary ----
+  async function loadPerson(){
+    const snap = await getDoc(personRef);
+    if(!snap.exists()){
+      alert("Personel bulunamadı!");
+      location.href = "personnel.html";
+      return;
+    }
+
+    const p = snap.data();
+    const name = getName(p) || "-";
+    pHeader.textContent = name + " | Detay";
+
+    sumName.textContent = name;
+    sumTitle.textContent = p.title || "-";
+    sumStatus.textContent = p.status || "-";
+    sumProject.textContent = p.projectName || p.projectId || "-";
+    sumStartDate.textContent = p.startDate || "-";
+    sumPhone.textContent = p.phone || "-";
+  }
+
+  // ---- DISCIPLINARY (TUTANAK) ----
+  const dDate = document.getElementById("dDate");
+  const dReason = document.getElementById("dReason");
+  const dPenalty = document.getElementById("dPenalty");
+  const dNote = document.getElementById("dNote");
+  const dTbody = document.getElementById("dTbody");
+
+  document.getElementById("dSave").onclick = async ()=>{
+    const date = dDate.value || "";
+    const reason = dReason.value.trim();
+    const penalty = dPenalty.value.trim();
+    const note = dNote.value.trim();
+
+    if(!date || !reason){
+      alert("Tarih ve sebep zorunlu");
+      return;
+    }
+
+    await addDoc(disciplinaryRef, {
+      date, reason, penalty, note,
+      createdAt: new Date()
+    });
+
+    dDate.value=""; dReason.value=""; dPenalty.value=""; dNote.value="";
+    await loadDisciplinary();
+  };
+
+  async function loadDisciplinary(){
+    let snap;
+    try {
+      snap = await getDocs(query(disciplinaryRef, orderBy("createdAt","desc")));
+    } catch(e){
+      snap = await getDocs(disciplinaryRef);
+    }
+    const items = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    dTbody.innerHTML = items.map(x=>`
+      <tr>
+        <td>${escapeHtml(x.date || "-")}</td>
+        <td>${escapeHtml(x.reason || "-")}</td>
+        <td>${escapeHtml(x.penalty || "-")}</td>
+        <td>${escapeHtml(x.note || "-")}</td>
+        <td><button class="btn small danger delD" data-id="${x.id}">Sil</button></td>
+      </tr>
+    `).join("") || `<tr><td colspan="5">Kayıt yok</td></tr>`;
+
+    dTbody.querySelectorAll(".delD").forEach(b=>{
+      b.onclick = async ()=>{
+        if(confirm("Tutanak silinsin mi?")){
+          await deleteDoc(doc(db,"personnel",personnelId,"disciplinary",b.dataset.id));
+          await loadDisciplinary();
+        }
+      };
+    });
+  }
+
+  // ---- LEAVES (İZİN) ----
+  const lFrom = document.getElementById("lFrom");
+  const lTo = document.getElementById("lTo");
+  const lType = document.getElementById("lType");
+  const lNote = document.getElementById("lNote");
+  const lTbody = document.getElementById("lTbody");
+
+  document.getElementById("lSave").onclick = async ()=>{
+    const from = lFrom.value || "";
+    const to = lTo.value || "";
+    const type = lType.value || "yillik";
+    const note = lNote.value.trim();
+
+    if(!from || !to){
+      alert("Başlangıç ve bitiş zorunlu");
+      return;
+    }
+
+    await addDoc(leavesRef, {
+      from, to, type, note,
+      createdAt: new Date()
+    });
+
+    lFrom.value=""; lTo.value=""; lType.value="yillik"; lNote.value="";
+    await loadLeaves();
+  };
+
+  async function loadLeaves(){
+    let snap;
+    try {
+      snap = await getDocs(query(leavesRef, orderBy("createdAt","desc")));
+    } catch(e){
+      snap = await getDocs(leavesRef);
+    }
+    const items = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    lTbody.innerHTML = items.map(x=>`
+      <tr>
+        <td>${escapeHtml(x.from || "-")}</td>
+        <td>${escapeHtml(x.to || "-")}</td>
+        <td>${escapeHtml(x.type || "-")}</td>
+        <td>${escapeHtml(x.note || "-")}</td>
+        <td><button class="btn small danger delL" data-id="${x.id}">Sil</button></td>
+      </tr>
+    `).join("") || `<tr><td colspan="5">Kayıt yok</td></tr>`;
+
+    lTbody.querySelectorAll(".delL").forEach(b=>{
+      b.onclick = async ()=>{
+        if(confirm("İzin silinsin mi?")){
+          await deleteDoc(doc(db,"personnel",personnelId,"leaves",b.dataset.id));
+          await loadLeaves();
+        }
+      };
+    });
+  }
+
+  // ---- SHIFTS (VARDİYA/GÖREV) ----
+  const sDate = document.getElementById("sDate");
+  const sRole = document.getElementById("sRole");
+  const sProject = document.getElementById("sProject");
+  const sNote = document.getElementById("sNote");
+  const sTbody = document.getElementById("sTbody");
+
+  document.getElementById("sSave").onclick = async ()=>{
+    const date = sDate.value || "";
+    const role = sRole.value.trim();
+    const project = sProject.value.trim();
+    const note = sNote.value.trim();
+
+    if(!date || !role){
+      alert("Tarih ve görev zorunlu");
+      return;
+    }
+
+    await addDoc(shiftsRef, {
+      date, role, project, note,
+      createdAt: new Date()
+    });
+
+    sDate.value=""; sRole.value=""; sProject.value=""; sNote.value="";
+    await loadShifts();
+  };
+
+  async function loadShifts(){
+    let snap;
+    try {
+      snap = await getDocs(query(shiftsRef, orderBy("createdAt","desc")));
+    } catch(e){
+      snap = await getDocs(shiftsRef);
+    }
+    const items = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    sTbody.innerHTML = items.map(x=>`
+      <tr>
+        <td>${escapeHtml(x.date || "-")}</td>
+        <td>${escapeHtml(x.role || "-")}</td>
+        <td>${escapeHtml(x.project || "-")}</td>
+        <td>${escapeHtml(x.note || "-")}</td>
+        <td><button class="btn small danger delS" data-id="${x.id}">Sil</button></td>
+      </tr>
+    `).join("") || `<tr><td colspan="5">Kayıt yok</td></tr>`;
+
+    sTbody.querySelectorAll(".delS").forEach(b=>{
+      b.onclick = async ()=>{
+        if(confirm("Vardiya kaydı silinsin mi?")){
+          await deleteDoc(doc(db,"personnel",personnelId,"shifts",b.dataset.id));
+          await loadShifts();
+        }
+      };
+    });
+  }
+
+  // init
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    await loadPerson();
+    await loadDisciplinary();
+    await loadLeaves();
+    await loadShifts();
+  });
+</script>
+</body>
+</html>
