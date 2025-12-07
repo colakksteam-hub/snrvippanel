@@ -45,162 +45,210 @@
 
   requireAuth();
 
-  const colRef = collection(db, "vehicles");
+  // Koleksiyonlar
+  const vehiclesRef = collection(db, "vehicles");
+  const projectsRef = collection(db, "projects");
 
-  // ✅ BUTON ve LİSTEYİ ID yerine daha sağlam şekilde buluyoruz
-  const addBtn =
-    document.getElementById("addBtn") ||
-    document.getElementById("addVehicleBtn") ||
-    document.querySelector("button.primary") ||
-    [...document.querySelectorAll("button")].find(b => b.textContent.toLowerCase().includes("araç ekle"));
+  // UI elemanları
+  const qInput = document.getElementById("q");
+  const projectFilter = document.getElementById("projectFilter");
+  const statusFilter = document.getElementById("statusFilter");
+  const addBtn = document.getElementById("addBtn");
+  const tbody = document.getElementById("tbody");
 
-  const listEl =
-    document.getElementById("vehiclesList") ||
-    document.getElementById("list") ||
-    document.getElementById("vehicleList") ||
-    document.querySelector(".list");
+  const formCard = document.getElementById("formCard");
+  const formTitle = document.getElementById("formTitle");
+  const plateEl = document.getElementById("plate");
+  const brandModelEl = document.getElementById("brandModel");
+  const projectIdEl = document.getElementById("projectId");
+  const statusEl = document.getElementById("status");
+  const kmEl = document.getElementById("km");
+  const saveBtn = document.getElementById("saveBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
 
-  if (!addBtn || !listEl) {
-    console.error("vehicles: addBtn veya liste alanı bulunamadı. HTML'de buton/list isimleri farklı.");
-    throw new Error("vehicles addBtn/list missing");
+  // State
+  let vehicles = [];
+  let projects = [];
+  let editingId = null;
+
+  // yardımcı
+  const escapeHtml = (s="") =>
+    s.replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+
+  function getProjectNameById(pid){
+    const p = projects.find(x => x.id === pid);
+    return p ? p.name : "-";
   }
 
-  let vehicles = [];
-  let addRowOpen = false;
+  // --- Projeleri yükle ve dropdownları doldur ---
+  async function loadProjects(){
+    const snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
+    projects = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        // projelerde alan adı ne olursa olsun yakalıyoruz:
+        name: data.name || data.projectName || data.title || "İsimsiz Proje"
+      };
+    });
 
-  const escapeHtml = (s="") =>
-    s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    // form içindeki proje dropdown
+    projectIdEl.innerHTML = `
+      <option value="">Bağlı Proje (ops.)</option>
+      ${projects.map(p => `
+        <option value="${p.id}">${escapeHtml(p.name)}</option>
+      `).join("")}
+    `;
 
-  function rowTemplate(v){
-    return `
-      <div class="row">
-        <div class="cell"><b>${escapeHtml(v.plate)}</b></div>
-        <div class="cell">${escapeHtml(v.brand || "-")}</div>
-        <div class="cell">${escapeHtml(v.projectName || "-")}</div>
-        <div class="cell">${escapeHtml(v.status || "-")}</div>
-        <div class="cell actions">
+    // filtre dropdown
+    projectFilter.innerHTML = `
+      <option value="">Tüm Projeler</option>
+      ${projects.map(p => `
+        <option value="${p.id}">${escapeHtml(p.name)}</option>
+      `).join("")}
+    `;
+  }
+
+  // --- Araçları yükle ---
+  async function loadVehicles(){
+    const snap = await getDocs(query(vehiclesRef, orderBy("createdAt","desc")));
+    vehicles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }
+
+  // --- Filtreleme ---
+  function filteredVehicles(){
+    const q = (qInput.value || "").toLowerCase().trim();
+    const pFilter = projectFilter.value || "";
+    const sFilter = statusFilter.value || "";
+
+    return vehicles.filter(v => {
+      const matchesQ =
+        !q ||
+        (v.plate || "").toLowerCase().includes(q) ||
+        (v.brandModel || v.brand || "").toLowerCase().includes(q);
+
+      const matchesProject =
+        !pFilter || v.projectId === pFilter;
+
+      const matchesStatus =
+        !sFilter || v.status === sFilter;
+
+      return matchesQ && matchesProject && matchesStatus;
+    });
+  }
+
+  // --- Tablo render ---
+  function render(){
+    const items = filteredVehicles();
+
+    tbody.innerHTML = items.map(v => `
+      <tr>
+        <td><b>${escapeHtml(v.plate || "")}</b></td>
+        <td>${escapeHtml(v.brandModel || v.brand || "-")}</td>
+        <td>${escapeHtml(getProjectNameById(v.projectId))}</td>
+        <td>${escapeHtml(v.status || "-")}</td>
+        <td>${escapeHtml(String(v.km ?? "-"))}</td>
+        <td>
           <button class="btn small edit" data-id="${v.id}">Düzenle</button>
           <button class="btn small danger del" data-id="${v.id}">Sil</button>
-        </div>
-      </div>
-    `;
-  }
+        </td>
+      </tr>
+    `).join("");
 
-  function addRowTemplate(){
-    return `
-      <div class="row new-row">
-        <div class="cell"><input id="vPlate" placeholder="Plaka" /></div>
-        <div class="cell"><input id="vBrand" placeholder="Marka / Model" /></div>
-        <div class="cell"><input id="vProject" placeholder="Bağlı Proje (ops.)" /></div>
-        <div class="cell">
-          <select id="vStatus">
-            <option value="aktif">Aktif</option>
-            <option value="serviste">Serviste</option>
-            <option value="pasif">Pasif</option>
-          </select>
-        </div>
-        <div class="cell actions">
-          <button class="btn small primary" id="saveBtn">Kaydet</button>
-          <button class="btn small" id="cancelBtn">İptal</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function render(){
-    listEl.innerHTML = `
-      ${addRowOpen ? addRowTemplate() : ""}
-      ${vehicles.map(rowTemplate).join("")}
-    `;
-
-    if(addRowOpen){
-      document.getElementById("saveBtn").onclick = saveNew;
-      document.getElementById("cancelBtn").onclick = closeAddRow;
-    }
-
-    listEl.querySelectorAll(".del").forEach(btn=>{
-      btn.onclick = async ()=>{
+    // sil
+    tbody.querySelectorAll(".del").forEach(btn => {
+      btn.onclick = async () => {
         const id = btn.dataset.id;
         if(confirm("Aracı silmek istiyor musun?")){
-          await deleteDoc(doc(db,"vehicles",id));
-          await load();
+          await deleteDoc(doc(db, "vehicles", id));
+          await loadVehicles();
         }
       };
     });
 
-    listEl.querySelectorAll(".edit").forEach(btn=>{
-      btn.onclick = ()=> openEdit(btn.dataset.id);
+    // düzenle
+    tbody.querySelectorAll(".edit").forEach(btn => {
+      btn.onclick = () => openEdit(btn.dataset.id);
     });
   }
 
-  function openAddRow(){ addRowOpen = true; render(); }
-  function closeAddRow(){ addRowOpen = false; render(); }
-
-  async function saveNew(){
-    const plate = (document.getElementById("vPlate")?.value || "").trim();
-    const brand = (document.getElementById("vBrand")?.value || "").trim();
-    const projectName = (document.getElementById("vProject")?.value || "").trim();
-    const status = document.getElementById("vStatus")?.value || "aktif";
-
-    if(!plate){ alert("Plaka boş olamaz"); return; }
-
-    await addDoc(colRef, {
-      plate, brand, projectName, status,
-      createdAt: new Date()
-    });
-
-    addRowOpen = false;
-    await load();
+  // --- Formu aç/kapat ---
+  function openNew(){
+    editingId = null;
+    formTitle.textContent = "Yeni Araç";
+    plateEl.value = "";
+    brandModelEl.value = "";
+    projectIdEl.value = "";
+    statusEl.value = "aktif";
+    kmEl.value = "";
+    formCard.style.display = "block";
   }
 
   function openEdit(id){
-    const v = vehicles.find(x=>x.id===id);
+    const v = vehicles.find(x => x.id === id);
     if(!v) return;
 
-    addRowOpen = false;
-    listEl.innerHTML = `
-      <div class="row new-row">
-        <div class="cell"><input id="ePlate" value="${escapeHtml(v.plate)}"/></div>
-        <div class="cell"><input id="eBrand" value="${escapeHtml(v.brand||"")}"/></div>
-        <div class="cell"><input id="eProject" value="${escapeHtml(v.projectName||"")}"/></div>
-        <div class="cell">
-          <select id="eStatus">
-            <option value="aktif" ${v.status==="aktif"?"selected":""}>Aktif</option>
-            <option value="serviste" ${v.status==="serviste"?"selected":""}>Serviste</option>
-            <option value="pasif" ${v.status==="pasif"?"selected":""}>Pasif</option>
-          </select>
-        </div>
-        <div class="cell actions">
-          <button class="btn small primary" id="updateBtn">Güncelle</button>
-          <button class="btn small" id="cancelEditBtn">İptal</button>
-        </div>
-      </div>
-      ${vehicles.filter(x=>x.id!==id).map(rowTemplate).join("")}
-    `;
+    editingId = id;
+    formTitle.textContent = "Araç Düzenle";
+    plateEl.value = v.plate || "";
+    brandModelEl.value = v.brandModel || v.brand || "";
+    projectIdEl.value = v.projectId || "";
+    statusEl.value = v.status || "aktif";
+    kmEl.value = v.km ?? "";
+    formCard.style.display = "block";
+  }
 
-    document.getElementById("updateBtn").onclick = async ()=>{
-      const plate = document.getElementById("ePlate").value.trim();
-      const brand = document.getElementById("eBrand").value.trim();
-      const projectName = document.getElementById("eProject").value.trim();
-      const status = document.getElementById("eStatus").value;
-      if(!plate){ alert("Plaka boş olamaz"); return; }
+  function closeForm(){
+    formCard.style.display = "none";
+  }
 
-      await updateDoc(doc(db,"vehicles",id), { plate, brand, projectName, status });
-      await load();
+  // --- Kaydet ---
+  async function saveVehicle(){
+    const plate = plateEl.value.trim();
+    const brandModel = brandModelEl.value.trim();
+    const projectId = projectIdEl.value || "";
+    const status = statusEl.value || "aktif";
+    const km = kmEl.value ? Number(kmEl.value) : 0;
+
+    if(!plate){
+      alert("Plaka boş olamaz"); 
+      return;
+    }
+
+    const payload = {
+      plate,
+      brandModel,
+      projectId,
+      status,
+      km,
+      createdAt: new Date()
     };
 
-    document.getElementById("cancelEditBtn").onclick = render;
+    if(editingId){
+      await updateDoc(doc(db,"vehicles", editingId), payload);
+    } else {
+      await addDoc(vehiclesRef, payload);
+    }
+
+    closeForm();
+    await loadVehicles();
   }
 
-  async function load(){
-    const snap = await getDocs(query(colRef, orderBy("createdAt","desc")));
-    vehicles = snap.docs.map(d=>({id:d.id, ...d.data()}));
-    render();
-  }
+  // --- Eventler ---
+  window.addEventListener("DOMContentLoaded", async () => {
+    addBtn.onclick = openNew;
+    cancelBtn.onclick = closeForm;
+    saveBtn.onclick = saveVehicle;
 
-  // ✅ DOM hazır olunca bağla
-  window.addEventListener("DOMContentLoaded", () => {
-    addBtn.onclick = openAddRow;
-    load();
+    qInput.oninput = render;
+    projectFilter.onchange = render;
+    statusFilter.onchange = render;
+
+    await loadProjects();
+    await loadVehicles();
   });
+
 </script>
