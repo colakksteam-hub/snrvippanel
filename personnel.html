@@ -48,33 +48,44 @@
 
     <table>
       <thead>
-        <tr>
-          <th>Ad Soyad</th>
-          <th>Ünvan</th>
-          <th>Proje</th>
-          <th>Durum</th>
-          <th>İşe Giriş</th>
-          <th>Telefon</th>
-          <th></th>
-        </tr>
+      <tr>
+        <th>AD SOYAD</th>
+        <th>ÜNVAN</th>
+        <th>PROJE</th>
+        <th>DURUM</th>
+        <th>İŞE GİRİŞ</th>
+        <th>TELEFON</th>
+        <th></th>
+      </tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
 
-    <!-- FORM -->
-    <div id="formCard" class="card" style="display:none;">
-      <h2 id="formTitle">Yeni Personel</h2>
+    <!-- yeni personel kartı (script bunu açıp kapatır) -->
+    <div id="addCard" class="card" style="display:none; margin-top:14px;">
+      <h2>Yeni Personel</h2>
       <div class="toolbar">
-        <input id="fullName" placeholder="Ad Soyad"/>
-        <input id="title" placeholder="Ünvan"/>
-        <select id="projectId"></select>
-        <select id="status">
+        <input id="pFullName" placeholder="Ad Soyad"/>
+        
+        <!-- Ünvan seçmeli -->
+        <select id="pTitle">
+          <option value="">Ünvan Seç</option>
+          <option value="vardiya_amiri">Vardiya Amiri</option>
+          <option value="danisman">Danışman</option>
+          <option value="yonetim">Yönetim</option>
+        </select>
+
+        <select id="pProjectId"></select>
+
+        <select id="pStatus">
           <option value="aktif">Aktif</option>
           <option value="izinli">İzinli</option>
           <option value="pasif">Pasif</option>
         </select>
-        <input id="startDate" type="date" placeholder="İşe Giriş"/>
-        <input id="phone" placeholder="Telefon (ops.)"/>
+
+        <input id="pStartDate" type="date" placeholder="İşe Giriş"/>
+        <input id="pPhone" placeholder="Telefon (ops.)"/>
+
         <button id="saveBtn">Kaydet</button>
         <button class="secondary" id="cancelBtn">İptal</button>
       </div>
@@ -103,16 +114,16 @@
   const addBtn        = document.getElementById("addBtn");
   const tbody         = document.getElementById("tbody");
 
-  const formCard   = document.getElementById("formCard");
-  const formTitle  = document.getElementById("formTitle");
-  const fullNameEl = document.getElementById("fullName");
-  const titleEl    = document.getElementById("title");
-  const projectIdEl= document.getElementById("projectId");
-  const statusEl   = document.getElementById("status");
-  const startDateEl= document.getElementById("startDate");
-  const phoneEl    = document.getElementById("phone");
-  const saveBtn    = document.getElementById("saveBtn");
-  const cancelBtn  = document.getElementById("cancelBtn");
+  const addCard     = document.getElementById("addCard");
+  const saveBtn     = document.getElementById("saveBtn");
+  const cancelBtn   = document.getElementById("cancelBtn");
+
+  const pFullName   = document.getElementById("pFullName");
+  const pTitle      = document.getElementById("pTitle");
+  const pProjectId  = document.getElementById("pProjectId");
+  const pStatus     = document.getElementById("pStatus");
+  const pStartDate  = document.getElementById("pStartDate");
+  const pPhone      = document.getElementById("pPhone");
 
   // State
   let personnel = [];
@@ -123,6 +134,13 @@
     s.replace(/[&<>"']/g, m => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[m]));
+
+  function titleLabel(v){
+    if(v==="vardiya_amiri") return "Vardiya Amiri";
+    if(v==="danisman") return "Danışman";
+    if(v==="yonetim") return "Yönetim";
+    return v || "-";
+  }
 
   function getProjectName(pid){
     const p = projects.find(x => x.id === pid);
@@ -139,7 +157,7 @@
       };
     });
 
-    projectIdEl.innerHTML = `
+    pProjectId.innerHTML = `
       <option value="">Proje Seç (ops.)</option>
       ${projects.map(p => `
         <option value="${p.id}">${escapeHtml(p.name)}</option>
@@ -184,7 +202,7 @@
     tbody.innerHTML = items.map(p => `
       <tr>
         <td><b>${escapeHtml(p.fullName || "")}</b></td>
-        <td>${escapeHtml(p.title || "-")}</td>
+        <td>${escapeHtml(titleLabel(p.title))}</td>
         <td>${escapeHtml(getProjectName(p.projectId))}</td>
         <td>${escapeHtml(p.status || "-")}</td>
         <td>${escapeHtml(p.startDate || "-")}</td>
@@ -213,14 +231,13 @@
 
   function openNew(){
     editingId = null;
-    formTitle.textContent = "Yeni Personel";
-    fullNameEl.value = "";
-    titleEl.value = "";
-    projectIdEl.value = "";
-    statusEl.value = "aktif";
-    startDateEl.value = "";
-    phoneEl.value = "";
-    formCard.style.display = "block";
+    pFullName.value  = "";
+    pTitle.value     = "";
+    pProjectId.value = "";
+    pStatus.value    = "aktif";
+    pStartDate.value = "";
+    pPhone.value     = "";
+    addCard.style.display = "block";
   }
 
   function openEdit(id){
@@ -228,27 +245,26 @@
     if(!p) return;
 
     editingId = id;
-    formTitle.textContent = "Personel Düzenle";
-    fullNameEl.value = p.fullName || "";
-    titleEl.value = p.title || "";
-    projectIdEl.value = p.projectId || "";
-    statusEl.value = p.status || "aktif";
-    startDateEl.value = p.startDate || "";
-    phoneEl.value = p.phone || "";
-    formCard.style.display = "block";
+    pFullName.value  = p.fullName || "";
+    pTitle.value     = p.title || "";
+    pProjectId.value = p.projectId || "";
+    pStatus.value    = p.status || "aktif";
+    pStartDate.value = p.startDate || "";
+    pPhone.value     = p.phone || "";
+    addCard.style.display = "block";
   }
 
   function closeForm(){
-    formCard.style.display = "none";
+    addCard.style.display = "none";
   }
 
   async function savePersonnel(){
-    const fullName = fullNameEl.value.trim();
-    const title    = titleEl.value.trim();
-    const projectId= projectIdEl.value || "";
-    const status   = statusEl.value || "aktif";
-    const startDate= startDateEl.value || "";
-    const phone    = phoneEl.value.trim();
+    const fullName  = pFullName.value.trim();
+    const title     = pTitle.value || "";
+    const projectId = pProjectId.value || "";
+    const status    = pStatus.value || "aktif";
+    const startDate = pStartDate.value || "";
+    const phone     = pPhone.value.trim();
 
     if(!fullName){
       alert("Ad Soyad boş olamaz");
