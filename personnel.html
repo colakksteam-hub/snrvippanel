@@ -1,100 +1,293 @@
-<!DOCTYPE html><html lang="tr"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SNR VIP | Personel</title><link rel="stylesheet" href="styles.css"/></head>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SNR VIP | Personel</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand"><div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div></div>
+    <div class="brand">
+      <div class="logo">SNR</div>
+      <div>
+        <div class="title">SNR VIP</div>
+        <div class="sub">Güvenlik & Koruma</div>
+      </div>
+    </div>
     <nav class="nav">
-      <a href="dashboard.html">🏠 Dashboard</a><a href="projects.html">🏗️ Proje Paneli</a>
-      <a class="active" href="personnel.html">👮 Personel</a><a href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="dashboard.html">🏠 Dashboard</a>
+      <a href="projects.html">🏗️ Proje Paneli</a>
+      <a class="active" href="personnel.html">👮 Personel</a>
+      <a href="vehicles.html">🚗 Araç Yönetimi</a>
       <a href="#" onclick="logout()">🚪 Çıkış</a>
     </nav>
   </aside>
+
   <main class="main">
-    <div class="topbar"><h1 style="margin:0;">Personel</h1><div class="user"><div class="pill" id="currentUser">Yönetici</div></div></div>
+    <div class="topbar">
+      <h1 style="margin:0;">Personel</h1>
+      <div class="user">
+        <div class="pill" id="currentUser">Yönetici</div>
+      </div>
+    </div>
+
     <div class="toolbar">
-      <input id="q" placeholder="Personel ara"/>
+      <input id="q" placeholder="Personel ara (ad/ünvan)"/>
       <select id="projectFilter"></select>
-      <select id="statusFilter"><option value="">Tüm Durumlar</option><option value="aktif">Aktif</option><option value="izinli">İzinli</option><option value="ayrıldı">Ayrıldı</option></select>
+      <select id="statusFilter">
+        <option value="">Tüm Durumlar</option>
+        <option value="aktif">Aktif</option>
+        <option value="izinli">İzinli</option>
+        <option value="pasif">Pasif</option>
+      </select>
       <button id="addBtn">+ Personel Ekle</button>
     </div>
-    <table><thead><tr><th>Ad Soyad</th><th>Unvan</th><th>Proje</th><th>Durum</th><th>İşe Giriş</th><th></th></tr></thead>
-      <tbody id="tbody"></tbody></table>
 
+    <table>
+      <thead>
+        <tr>
+          <th>Ad Soyad</th>
+          <th>Ünvan</th>
+          <th>Proje</th>
+          <th>Durum</th>
+          <th>İşe Giriş</th>
+          <th>Telefon</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <!-- FORM -->
     <div id="formCard" class="card" style="display:none;">
       <h2 id="formTitle">Yeni Personel</h2>
       <div class="toolbar">
-        <input id="fullName" placeholder="Ad soyad"/><input id="title" placeholder="Unvan"/>
+        <input id="fullName" placeholder="Ad Soyad"/>
+        <input id="title" placeholder="Ünvan"/>
         <select id="projectId"></select>
-        <select id="status"><option value="aktif">Aktif</option><option value="izinli">İzinli</option><option value="ayrıldı">Ayrıldı</option></select>
-        <input id="startDate" type="date"/><input id="phone" placeholder="Telefon (ops.)"/>
-        <button id="saveBtn">Kaydet</button><button class="secondary" id="cancelBtn">İptal</button>
+        <select id="status">
+          <option value="aktif">Aktif</option>
+          <option value="izinli">İzinli</option>
+          <option value="pasif">Pasif</option>
+        </select>
+        <input id="startDate" type="date" placeholder="İşe Giriş"/>
+        <input id="phone" placeholder="Telefon (ops.)"/>
+        <button id="saveBtn">Kaydet</button>
+        <button class="secondary" id="cancelBtn">İptal</button>
       </div>
     </div>
+
   </main>
 </div>
 
 <script type="module">
-import { requireAuth } from "./guard.js";
-import { listCol, addWithTS, updateById, deleteById, colProjects, colPersonnel } from "./db.js";
-import { fmtDate, badgeStatus } from "./ui.js";
+  import { requireAuth } from "./guard.js";
+  import { db } from "./firebase.js";
+  import {
+    collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
+    query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-requireAuth();
-let projects=[], personnel=[], editingId=null;
+  requireAuth();
 
-function fillProjects(){
-  projectFilter.innerHTML = ['<option value="">Tüm Projeler</option>'].concat(projects.map(p=>`<option value="${p.id}">${p.name}</option>`)).join("");
-  projectId.innerHTML = projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
-}
-async function load(){
-  projects=await listCol(colProjects);
-  personnel=await listCol(colPersonnel);
-  fillProjects(); render();
-}
-function render(){
-  const text=q.value.toLowerCase(), pf=projectFilter.value, sf=statusFilter.value;
-  const filtered=personnel.filter(p=>{
-    const mt=(p.fullName||"").toLowerCase().includes(text)||(p.title||"").toLowerCase().includes(text);
-    const mp=!pf || p.projectId===pf;
-    const ms=!sf || (p.status||"").toLowerCase()===sf;
-    return mt&&mp&&ms;
+  const personnelRef = collection(db, "personnel");
+  const projectsRef  = collection(db, "projects");
+
+  // UI
+  const qInput        = document.getElementById("q");
+  const projectFilter = document.getElementById("projectFilter");
+  const statusFilter  = document.getElementById("statusFilter");
+  const addBtn        = document.getElementById("addBtn");
+  const tbody         = document.getElementById("tbody");
+
+  const formCard   = document.getElementById("formCard");
+  const formTitle  = document.getElementById("formTitle");
+  const fullNameEl = document.getElementById("fullName");
+  const titleEl    = document.getElementById("title");
+  const projectIdEl= document.getElementById("projectId");
+  const statusEl   = document.getElementById("status");
+  const startDateEl= document.getElementById("startDate");
+  const phoneEl    = document.getElementById("phone");
+  const saveBtn    = document.getElementById("saveBtn");
+  const cancelBtn  = document.getElementById("cancelBtn");
+
+  // State
+  let personnel = [];
+  let projects  = [];
+  let editingId = null;
+
+  const escapeHtml = (s="") =>
+    s.replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+
+  function getProjectName(pid){
+    const p = projects.find(x => x.id === pid);
+    return p ? p.name : "-";
+  }
+
+  async function loadProjects(){
+    const snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
+    projects = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: data.name || data.projectName || data.title || "İsimsiz Proje"
+      };
+    });
+
+    projectIdEl.innerHTML = `
+      <option value="">Proje Seç (ops.)</option>
+      ${projects.map(p => `
+        <option value="${p.id}">${escapeHtml(p.name)}</option>
+      `).join("")}
+    `;
+
+    projectFilter.innerHTML = `
+      <option value="">Tüm Projeler</option>
+      ${projects.map(p => `
+        <option value="${p.id}">${escapeHtml(p.name)}</option>
+      `).join("")}
+    `;
+  }
+
+  async function loadPersonnel(){
+    const snap = await getDocs(query(personnelRef, orderBy("createdAt","desc")));
+    personnel = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }
+
+  function filteredPersonnel(){
+    const q = (qInput.value || "").toLowerCase().trim();
+    const pFilter = projectFilter.value || "";
+    const sFilter = statusFilter.value || "";
+
+    return personnel.filter(p => {
+      const matchesQ =
+        !q ||
+        (p.fullName || "").toLowerCase().includes(q) ||
+        (p.title || "").toLowerCase().includes(q);
+
+      const matchesProject = !pFilter || p.projectId === pFilter;
+      const matchesStatus  = !sFilter || p.status === sFilter;
+
+      return matchesQ && matchesProject && matchesStatus;
+    });
+  }
+
+  function render(){
+    const items = filteredPersonnel();
+
+    tbody.innerHTML = items.map(p => `
+      <tr>
+        <td><b>${escapeHtml(p.fullName || "")}</b></td>
+        <td>${escapeHtml(p.title || "-")}</td>
+        <td>${escapeHtml(getProjectName(p.projectId))}</td>
+        <td>${escapeHtml(p.status || "-")}</td>
+        <td>${escapeHtml(p.startDate || "-")}</td>
+        <td>${escapeHtml(p.phone || "-")}</td>
+        <td>
+          <button class="btn small edit" data-id="${p.id}">Düzenle</button>
+          <button class="btn small danger del" data-id="${p.id}">Sil</button>
+        </td>
+      </tr>
+    `).join("");
+
+    tbody.querySelectorAll(".del").forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.id;
+        if(confirm("Personeli silmek istiyor musun?")){
+          await deleteDoc(doc(db, "personnel", id));
+          await loadPersonnel();
+        }
+      };
+    });
+
+    tbody.querySelectorAll(".edit").forEach(btn => {
+      btn.onclick = () => openEdit(btn.dataset.id);
+    });
+  }
+
+  function openNew(){
+    editingId = null;
+    formTitle.textContent = "Yeni Personel";
+    fullNameEl.value = "";
+    titleEl.value = "";
+    projectIdEl.value = "";
+    statusEl.value = "aktif";
+    startDateEl.value = "";
+    phoneEl.value = "";
+    formCard.style.display = "block";
+  }
+
+  function openEdit(id){
+    const p = personnel.find(x => x.id === id);
+    if(!p) return;
+
+    editingId = id;
+    formTitle.textContent = "Personel Düzenle";
+    fullNameEl.value = p.fullName || "";
+    titleEl.value = p.title || "";
+    projectIdEl.value = p.projectId || "";
+    statusEl.value = p.status || "aktif";
+    startDateEl.value = p.startDate || "";
+    phoneEl.value = p.phone || "";
+    formCard.style.display = "block";
+  }
+
+  function closeForm(){
+    formCard.style.display = "none";
+  }
+
+  async function savePersonnel(){
+    const fullName = fullNameEl.value.trim();
+    const title    = titleEl.value.trim();
+    const projectId= projectIdEl.value || "";
+    const status   = statusEl.value || "aktif";
+    const startDate= startDateEl.value || "";
+    const phone    = phoneEl.value.trim();
+
+    if(!fullName){
+      alert("Ad Soyad boş olamaz");
+      return;
+    }
+
+    const payload = {
+      fullName,
+      title,
+      projectId,
+      status,
+      startDate,
+      phone,
+      createdAt: new Date()
+    };
+
+    if(editingId){
+      await updateDoc(doc(db,"personnel", editingId), payload);
+    } else {
+      await addDoc(personnelRef, payload);
+    }
+
+    closeForm();
+    await loadPersonnel();
+  }
+
+  window.addEventListener("DOMContentLoaded", async () => {
+    addBtn.onclick = openNew;
+    cancelBtn.onclick = closeForm;
+    saveBtn.onclick = savePersonnel;
+
+    qInput.oninput = render;
+    projectFilter.onchange = render;
+    statusFilter.onchange = render;
+
+    await loadProjects();
+    await loadPersonnel();
   });
-  tbody.innerHTML = filtered.map(p=>{
-    const proj=projects.find(x=>x.id===p.projectId);
-    return `<tr>
-      <td><b>${p.fullName}</b></td><td>${p.title||"-"}</td><td>${proj?.name||"-"}</td>
-      <td>${badgeStatus(p.status)}</td><td>${fmtDate(p.startDate)}</td>
-      <td style="text-align:right;">
-        <a class="badge" href="personnel_detail.html?id=${p.id}">Detay</a>
-        <button class="secondary" data-edit="${p.id}">Düzenle</button>
-        <button class="secondary" data-del="${p.id}">Sil</button>
-      </td></tr>`;
-  }).join("");
-  tbody.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>edit(b.dataset.edit));
-  tbody.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>del(b.dataset.del));
-}
-function edit(id){
-  const p=personnel.find(x=>x.id===id);
-  editingId=id; formCard.style.display="block"; formTitle.textContent="Personel Düzenle";
-  fullName.value=p.fullName||""; title.value=p.title||""; phone.value=p.phone||"";
-  status.value=p.status||"aktif"; projectId.value=p.projectId||projects[0]?.id||"";
-  startDate.value = p.startDate?.toDate ? p.startDate.toDate().toISOString().slice(0,10) : "";
-}
-async function del(id){ if(confirm("Personel silinsin mi?")){ await deleteById(colPersonnel,id); await load(); } }
-
-addBtn.onclick=()=>{ editingId=null; formCard.style.display="block"; formTitle.textContent="Yeni Personel";
-  fullName.value=""; title.value=""; phone.value=""; status.value="aktif"; startDate.value="";
-  projectId.value=projects[0]?.id||""; };
-cancelBtn.onclick=()=>formCard.style.display="none";
-saveBtn.onclick=async ()=>{
-  const data={fullName:fullName.value.trim(), title:title.value.trim(), phone:phone.value.trim(),
-    projectId:projectId.value, status:status.value, startDate: startDate.value? new Date(startDate.value): null};
-  if(!data.fullName) return alert("Ad soyad boş olamaz");
-  if(editingId) await updateById(colPersonnel,editingId,data); else await addWithTS(colPersonnel,data);
-  formCard.style.display="none"; await load();
-};
-q.oninput=render; projectFilter.onchange=render; statusFilter.onchange=render;
-load();
 </script>
-</body></html>
+
+</body>
+</html>
