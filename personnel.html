@@ -16,7 +16,6 @@
         <div class="sub">Güvenlik & Koruma</div>
       </div>
     </div>
-
     <nav class="nav">
       <a href="dashboard.html">🏠 Dashboard</a>
       <a href="projects.html">🏗️ Proje Paneli</a>
@@ -29,12 +28,9 @@
   <main class="main">
     <div class="topbar">
       <h1 style="margin:0;">Personel</h1>
-      <div class="user">
-        <div class="pill" id="currentUser">Yönetici</div>
-      </div>
+      <div class="user"><div class="pill" id="currentUser">Yönetici</div></div>
     </div>
 
-    <!-- üst toolbar -->
     <div class="toolbar">
       <input id="q" placeholder="Personel ara (ad/ünvan)"/>
       <select id="projectFilter"></select>
@@ -46,48 +42,48 @@
       <button id="addBtn">+ Personel Ekle</button>
     </div>
 
-    <!-- liste tablo -->
     <table>
       <thead>
       <tr>
-        <th>AD SOYAD</th>
-        <th>ÜNVAN</th>
-        <th>PROJE</th>
-        <th>DURUM</th>
-        <th>İŞE GİRİŞ</th>
-        <th>TELEFON</th>
+        <th>Ad Soyad</th>
+        <th>Ünvan</th>
+        <th>Proje</th>
+        <th>Durum</th>
+        <th>İşe Giriş</th>
+        <th>Telefon</th>
         <th></th>
       </tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
 
-    <!-- form kart -->
-    <div id="formCard" class="card" style="display:none;">
+    <div id="formCard" class="card" style="display:none; margin-top:14px;">
       <h2 id="formTitle">Yeni Personel</h2>
       <div class="toolbar">
         <input id="pName" placeholder="Ad Soyad"/>
+
         <select id="pTitle">
           <option value="vardiya_amiri">Vardiya Amiri</option>
           <option value="danisman">Danışman</option>
           <option value="yonetim">Yönetim</option>
         </select>
 
-        <select id="pProjectId"></select>
+        <select id="pProjectId">
+          <option value="">Proje Seç (ops.)</option>
+        </select>
 
         <select id="pStatus">
           <option value="aktif">Aktif</option>
           <option value="pasif">Pasif</option>
         </select>
 
-        <input id="pStartDate" type="date" />
+        <input id="pStartDate" type="date" placeholder="İşe Giriş"/>
         <input id="pPhone" placeholder="Telefon (ops.)"/>
 
         <button id="saveBtn">Kaydet</button>
         <button class="secondary" id="cancelBtn">İptal</button>
       </div>
     </div>
-
   </main>
 </div>
 
@@ -101,11 +97,11 @@
 
   requireAuth();
 
-  // koleksiyonlar
+  // refs
   const personnelRef = collection(db, "personnel");
   const projectsRef  = collection(db, "projects");
 
-  // elementler
+  // ui
   const qInput        = document.getElementById("q");
   const projectFilter = document.getElementById("projectFilter");
   const statusFilter  = document.getElementById("statusFilter");
@@ -133,45 +129,34 @@
       "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
     }[m]));
 
-  // isim normalize: hangi key olursa olsun yakala
-  function getName(p){
-    return String(
-      p.name ??
-      p.fullName ??
-      p.full_name ??
-      p.fullname ??
-      p.adSoyad ??
-      p.ad_soyad ??
-      p.ad ??
-      p.isim ??
-      ""
-    ).trim();
-  }
+  const titleLabel = (v) => {
+    if(!v) return "-";
+    if(v === "vardiya_amiri") return "Vardiya Amiri";
+    if(v === "danisman") return "Danışman";
+    if(v === "yonetim") return "Yönetim";
+    return v;
+  };
 
-  function normalizeDoc(d){
-    const data = d.data();
+  const normalizeDoc = (d) => {
+    const raw = d.data();
     return {
       id: d.id,
-      ...data,
-      name: getName(data),
-      title: data.title || data.unvan || data.role || "danisman",
-      status: data.status || "aktif",
-      projectId: data.projectId || "",
-      startDate: data.startDate || "",
-      phone: data.phone || data.tel || ""
+      // isim alanı farklı yazılmış olabilir -> hepsini okuyoruz
+      name: raw.name || raw.adSoyad || raw.fullName || "",
+      title: raw.title || raw.unvan || "danisman",
+      projectId: raw.projectId || "",
+      status: raw.status || "aktif",
+      startDate: raw.startDate || "",
+      phone: raw.phone || "",
+      createdAt: raw.createdAt || null
     };
-  }
+  };
 
-  function getProjectName(pid){
+  const getProjectName = (pid) => {
+    if(!pid) return "-";
     const p = projects.find(x => x.id === pid);
-    return p ? p.name : "-";
-  }
-
-  function titleLabel(t){
-    if(t === "vardiya_amiri") return "Vardiya Amiri";
-    if(t === "yonetim") return "Yönetim";
-    return "Danışman";
-  }
+    return p ? (p.name || "-") : "-";
+  };
 
   function filteredPersonnel(){
     const q = (qInput.value || "").toLowerCase().trim();
@@ -179,53 +164,52 @@
     const sf = statusFilter.value || "";
 
     return personnel.filter(p => {
-      const name = getName(p).toLowerCase();
-      const title = (p.title || "").toLowerCase();
-      const matchesQ = !q || name.includes(q) || title.includes(q);
-      const matchesP = !pf || p.projectId === pf;
-      const matchesS = !sf || p.status === sf;
-      return matchesQ && matchesP && matchesS;
+      const matchesQ =
+        !q ||
+        (p.name || "").toLowerCase().includes(q) ||
+        (p.title || "").toLowerCase().includes(q);
+
+      const matchesProject = !pf || p.projectId === pf;
+      const matchesStatus  = !sf || p.status === sf;
+
+      return matchesQ && matchesProject && matchesStatus;
     });
   }
 
   function render(){
     const rows = filteredPersonnel().map(p => `
       <tr>
-        <td><b>${escapeHtml(getName(p) || "-")}</b></td>
+        <td><b>${escapeHtml(p.name || "-")}</b></td>
         <td>${escapeHtml(titleLabel(p.title))}</td>
         <td>${escapeHtml(getProjectName(p.projectId))}</td>
         <td>${escapeHtml(p.status || "-")}</td>
         <td>${escapeHtml(p.startDate || "-")}</td>
         <td>${escapeHtml(p.phone || "-")}</td>
-        <td style="white-space:nowrap;">
+        <td class="actions">
           <button class="btn small edit" data-id="${p.id}">Düzenle</button>
           <button class="btn small danger del" data-id="${p.id}">Sil</button>
         </td>
       </tr>
     `).join("");
 
-    tbody.innerHTML = rows || `<tr><td colspan="7" style="opacity:.6;">Kayıt yok</td></tr>`;
+    tbody.innerHTML = rows || `<tr><td colspan="7">Kayıt yok</td></tr>`;
 
-    tbody.querySelectorAll(".edit").forEach(btn => {
-      btn.onclick = () => openEdit(btn.dataset.id);
-    });
-    tbody.querySelectorAll(".del").forEach(btn => {
+    tbody.querySelectorAll(".del").forEach(btn=>{
       btn.onclick = async () => {
         const id = btn.dataset.id;
-        if(confirm("Personel silinsin mi?")){
+        if(confirm("Personeli silmek istiyor musun?")){
           await deleteDoc(doc(db,"personnel",id));
           await loadPersonnel();
         }
-      };
+      }
+    });
+
+    tbody.querySelectorAll(".edit").forEach(btn=>{
+      btn.onclick = () => openEdit(btn.dataset.id);
     });
   }
 
-  function openForm(){
-    formCard.style.display = "block";
-  }
-
-  function closeForm(){
-    formCard.style.display = "none";
+  function openAdd(){
     editingId = null;
     formTitle.textContent = "Yeni Personel";
     pName.value = "";
@@ -234,47 +218,51 @@
     pStatus.value = "aktif";
     pStartDate.value = "";
     pPhone.value = "";
+    formCard.style.display = "block";
   }
 
   function openEdit(id){
     const p = personnel.find(x => x.id === id);
     if(!p) return;
-
     editingId = id;
-    formTitle.textContent = "Personel Düzenle";
-    openForm();
 
-    pName.value      = getName(p);
-    pTitle.value     = p.title || "danisman";
+    formTitle.textContent = "Personel Düzenle";
+    pName.value = p.name || "";
+    pTitle.value = p.title || "danisman";
     pProjectId.value = p.projectId || "";
-    pStatus.value    = p.status || "aktif";
+    pStatus.value = p.status || "aktif";
     pStartDate.value = p.startDate || "";
-    pPhone.value     = p.phone || "";
+    pPhone.value = p.phone || "";
+
+    formCard.style.display = "block";
+  }
+
+  function closeForm(){
+    formCard.style.display = "none";
   }
 
   saveBtn.onclick = async () => {
-    const name = pName.value.trim();
-    const title = pTitle.value;
+    const name = (pName.value || "").trim();
+    const title = pTitle.value || "danisman";
     const projectId = pProjectId.value || "";
     const status = pStatus.value || "aktif";
     const startDate = pStartDate.value || "";
-    const phone = pPhone.value.trim();
+    const phone = (pPhone.value || "").trim();
 
     if(!name){
       alert("Ad Soyad boş olamaz");
       return;
     }
 
-    const payload = {
-      name, title, projectId, status,
-      startDate, phone,
-      createdAt: new Date()
-    };
-
     if(editingId){
-      await updateDoc(doc(db,"personnel",editingId), payload);
-    }else{
-      await addDoc(personnelRef, payload);
+      await updateDoc(doc(db,"personnel",editingId), {
+        name, title, projectId, status, startDate, phone
+      });
+    } else {
+      await addDoc(personnelRef, {
+        name, title, projectId, status, startDate, phone,
+        createdAt: new Date()
+      });
     }
 
     closeForm();
@@ -282,49 +270,49 @@
   };
 
   cancelBtn.onclick = closeForm;
-  addBtn.onclick = () => {
-    editingId = null;
-    formTitle.textContent = "Yeni Personel";
-    openForm();
-  };
+
+  qInput.oninput = render;
+  projectFilter.onchange = render;
+  statusFilter.onchange = render;
+  addBtn.onclick = openAdd;
 
   async function loadProjects(){
-    const snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
+    let snap;
+    try {
+      snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
+    } catch(e){
+      console.warn("projects createdAt yok, orderBy kaldırıldı");
+      snap = await getDocs(projectsRef);
+    }
+
     projects = snap.docs.map(d => ({id:d.id, ...d.data()}));
 
-    const options = [
-      `<option value="">Tüm Projeler</option>`,
-      ...projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
-    ].join("");
+    projectFilter.innerHTML =
+      `<option value="">Tüm Projeler</option>` +
+      projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
 
-    projectFilter.innerHTML = options;
-    pProjectId.innerHTML = `<option value="">Proje Seç (ops.)</option>` + 
+    pProjectId.innerHTML =
+      `<option value="">Proje Seç (ops.)</option>` +
       projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   }
 
-  async function loadProjects(){
-  let snap;
-  try {
-    snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
-  } catch(e){
-    // eski projelerde createdAt yoksa buraya düşer
-    console.warn("projects createdAt yok, orderBy kaldırıldı");
-    snap = await getDocs(projectsRef);
+  async function loadPersonnel(){
+    let snap;
+    try {
+      snap = await getDocs(query(personnelRef, orderBy("createdAt","desc")));
+    } catch(e){
+      console.warn("personnel createdAt yok, orderBy kaldırıldı");
+      snap = await getDocs(personnelRef);
+    }
+
+    personnel = snap.docs.map(normalizeDoc);
+    render();
   }
 
-  projects = snap.docs.map(d => ({id:d.id, ...d.data()}));
-
-  const options = [
-    `<option value="">Tüm Projeler</option>`,
-    ...projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
-  ].join("");
-
-  projectFilter.innerHTML = options;
-  pProjectId.innerHTML =
-    `<option value="">Proje Seç (ops.)</option>` +
-    projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
-}
-
+  window.addEventListener("DOMContentLoaded", async () => {
+    await loadProjects();
+    await loadPersonnel();
+  });
 </script>
 </body>
 </html>
