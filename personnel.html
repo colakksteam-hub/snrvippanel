@@ -6,7 +6,6 @@
   <title>SNR VIP | Personel</title>
   <link rel="stylesheet" href="styles.css"/>
 </head>
-
 <body>
 <div class="app">
   <aside class="sidebar">
@@ -17,6 +16,7 @@
         <div class="sub">Güvenlik & Koruma</div>
       </div>
     </div>
+
     <nav class="nav">
       <a href="dashboard.html">🏠 Dashboard</a>
       <a href="projects.html">🏗️ Proje Paneli</a>
@@ -34,18 +34,19 @@
       </div>
     </div>
 
+    <!-- üst toolbar -->
     <div class="toolbar">
       <input id="q" placeholder="Personel ara (ad/ünvan)"/>
       <select id="projectFilter"></select>
       <select id="statusFilter">
         <option value="">Tüm Durumlar</option>
         <option value="aktif">Aktif</option>
-        <option value="izinli">İzinli</option>
         <option value="pasif">Pasif</option>
       </select>
       <button id="addBtn">+ Personel Ekle</button>
     </div>
 
+    <!-- liste tablo -->
     <table>
       <thead>
       <tr>
@@ -61,30 +62,25 @@
       <tbody id="tbody"></tbody>
     </table>
 
-    <!-- yeni personel kartı (script bunu açıp kapatır) -->
-    <div id="addCard" class="card" style="display:none; margin-top:14px;">
-      <h2>Yeni Personel</h2>
+    <!-- form kart -->
+    <div id="formCard" class="card" style="display:none;">
+      <h2 id="formTitle">Yeni Personel</h2>
       <div class="toolbar">
-        <input id="pFullName" placeholder="Ad Soyad"/>
-        
-        <!-- Ünvan seçmeli -->
+        <input id="pName" placeholder="Ad Soyad"/>
         <select id="pTitle">
-  <option value="">Ünvan Seç</option>
-  <option value="VARDIYA AMİRİ">VARDIYA AMİRİ</option>
-  <option value="DANIŞMAN">DANIŞMAN</option>
-  <option value="YÖNETİM">YÖNETİM</option>
-</select>
-
+          <option value="vardiya_amiri">Vardiya Amiri</option>
+          <option value="danisman">Danışman</option>
+          <option value="yonetim">Yönetim</option>
+        </select>
 
         <select id="pProjectId"></select>
 
         <select id="pStatus">
           <option value="aktif">Aktif</option>
-          <option value="izinli">İzinli</option>
           <option value="pasif">Pasif</option>
         </select>
 
-        <input id="pStartDate" type="date" placeholder="İşe Giriş"/>
+        <input id="pStartDate" type="date" />
         <input id="pPhone" placeholder="Telefon (ops.)"/>
 
         <button id="saveBtn">Kaydet</button>
@@ -105,106 +101,51 @@
 
   requireAuth();
 
-  // Collections
+  // koleksiyonlar
   const personnelRef = collection(db, "personnel");
   const projectsRef  = collection(db, "projects");
 
-  // ---- DOM (robust) ----
-  const qInput =
-    document.getElementById("q") ||
-    document.querySelector('input[placeholder*="Personel ara"]');
+  // elementler
+  const qInput        = document.getElementById("q");
+  const projectFilter = document.getElementById("projectFilter");
+  const statusFilter  = document.getElementById("statusFilter");
+  const addBtn        = document.getElementById("addBtn");
+  const tbody         = document.getElementById("tbody");
 
-  const projectFilter =
-    document.getElementById("projectFilter") ||
-    document.getElementById("pFilter") ||
-    document.querySelector("select");
+  const formCard   = document.getElementById("formCard");
+  const formTitle  = document.getElementById("formTitle");
+  const pName      = document.getElementById("pName");
+  const pTitle     = document.getElementById("pTitle");
+  const pProjectId = document.getElementById("pProjectId");
+  const pStatus    = document.getElementById("pStatus");
+  const pStartDate = document.getElementById("pStartDate");
+  const pPhone     = document.getElementById("pPhone");
+  const saveBtn    = document.getElementById("saveBtn");
+  const cancelBtn  = document.getElementById("cancelBtn");
 
-  const statusFilter =
-    document.getElementById("statusFilter") ||
-    document.getElementById("pStatusFilter") ||
-    [...document.querySelectorAll("select")].find(s => s.id.toLowerCase().includes("durum"));
-
-  const addBtn =
-    document.getElementById("addBtn") ||
-    document.getElementById("addPersonnelBtn") ||
-    [...document.querySelectorAll("button")].find(b => b.textContent.toLowerCase().includes("personel ekle"));
-
-  const tbody =
-    document.getElementById("tbody") ||
-    document.querySelector("tbody");
-
-  // Form alanları (edit + add aynı form)
-  const formCard =
-    document.getElementById("formCard") ||
-    [...document.querySelectorAll(".card")].find(c => c.textContent.toLowerCase().includes("personel"));
-
-  const pName =
-    document.getElementById("pName") ||
-    document.getElementById("pFullName") ||
-    document.getElementById("fullName") ||
-    document.getElementById("adSoyad") ||
-    [...document.querySelectorAll("input")].find(i => i.placeholder?.toLowerCase().includes("ad"));
-
-  const pTitle =
-    document.getElementById("pTitle") ||
-    document.getElementById("title") ||
-    [...document.querySelectorAll("select,input")].find(i => i.id?.toLowerCase().includes("title") || i.placeholder?.toLowerCase().includes("ünvan"));
-
-  const pProjectId =
-    document.getElementById("pProjectId") ||
-    document.getElementById("projectId") ||
-    [...document.querySelectorAll("select")].find(s => s.id?.toLowerCase().includes("project"));
-
-  const pStatus =
-    document.getElementById("pStatus") ||
-    document.getElementById("status") ||
-    [...document.querySelectorAll("select")].find(s => s.id?.toLowerCase().includes("status") || s.id?.toLowerCase().includes("durum"));
-
-  const pStartDate =
-    document.getElementById("pStartDate") ||
-    document.getElementById("startDate") ||
-    [...document.querySelectorAll("input")].find(i => i.type === "date" || i.placeholder?.toLowerCase().includes("gg.aa"));
-
-  const pPhone =
-    document.getElementById("pPhone") ||
-    document.getElementById("phone") ||
-    [...document.querySelectorAll("input")].find(i => i.placeholder?.toLowerCase().includes("telefon"));
-
-  const saveBtn =
-    document.getElementById("saveBtn") ||
-    [...document.querySelectorAll("button")].find(b => b.textContent.toLowerCase().includes("kaydet"));
-
-  const cancelBtn =
-    document.getElementById("cancelBtn") ||
-    [...document.querySelectorAll("button")].find(b => b.textContent.toLowerCase().includes("iptal"));
-
-  if (!addBtn || !tbody || !formCard || !saveBtn) {
-    console.error("personnel: gerekli elementler bulunamadı");
-    throw new Error("personnel html ids uyumsuz");
-  }
-
-  // ---- State ----
+  // state
   let personnel = [];
-  let projects = [];
+  let projects  = [];
   let editingId = null;
 
-  const TITLES = [
-    { value: "vardiya_amiri", label: "Vardiya Amiri" },
-    { value: "danisman",      label: "Danışman" },
-    { value: "yonetim",       label: "Yönetim" }
-  ];
-
   const escapeHtml = (s="") =>
-    s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
 
+  // isim normalize: hangi key olursa olsun yakala
   function getName(p){
-    return (p.name || p.fullName || p.adSoyad || p.ad || "").trim();
-  }
-
-  function getProjectName(pid){
-    if(!pid) return "-";
-    const pr = projects.find(x => x.id === pid);
-    return pr ? pr.name : "-";
+    return String(
+      p.name ??
+      p.fullName ??
+      p.full_name ??
+      p.fullname ??
+      p.adSoyad ??
+      p.ad_soyad ??
+      p.ad ??
+      p.isim ??
+      ""
+    ).trim();
   }
 
   function normalizeDoc(d){
@@ -212,33 +153,30 @@
     return {
       id: d.id,
       ...data,
-      // isim alanını garantiye al
-      name: (data.name || data.fullName || data.adSoyad || "").trim()
+      name: getName(data),
+      title: data.title || data.unvan || data.role || "danisman",
+      status: data.status || "aktif",
+      projectId: data.projectId || "",
+      startDate: data.startDate || "",
+      phone: data.phone || data.tel || ""
     };
   }
 
-  function setFormVisible(v){
-    formCard.style.display = v ? "block" : "none";
+  function getProjectName(pid){
+    const p = projects.find(x => x.id === pid);
+    return p ? p.name : "-";
   }
 
-  function clearForm(){
-    if(pName) pName.value = "";
-    if(pPhone) pPhone.value = "";
-    if(pStartDate) pStartDate.value = "";
-    if(pStatus) pStatus.value = "aktif";
-    if(pProjectId) pProjectId.value = "";
-    if(pTitle){
-      // ünvan select ise ilk seçeneğe çek
-      if(pTitle.tagName === "SELECT") pTitle.value = TITLES[0].value;
-      else pTitle.value = "";
-    }
-    editingId = null;
+  function titleLabel(t){
+    if(t === "vardiya_amiri") return "Vardiya Amiri";
+    if(t === "yonetim") return "Yönetim";
+    return "Danışman";
   }
 
   function filteredPersonnel(){
-    const q = (qInput?.value || "").toLowerCase().trim();
-    const pf = projectFilter?.value || "";
-    const sf = statusFilter?.value || "";
+    const q = (qInput.value || "").toLowerCase().trim();
+    const pf = projectFilter.value || "";
+    const sf = statusFilter.value || "";
 
     return personnel.filter(p => {
       const name = getName(p).toLowerCase();
@@ -251,66 +189,76 @@
   }
 
   function render(){
-    const rows = filteredPersonnel().map(p => {
-      return `
-        <tr>
-          <td><b>${escapeHtml(getName(p) || "-")}</b></td>
-          <td>${escapeHtml(p.titleLabel || p.title || "-")}</td>
-          <td>${escapeHtml(getProjectName(p.projectId))}</td>
-          <td>${escapeHtml(p.status || "-")}</td>
-          <td>${escapeHtml(p.startDate || "-")}</td>
-          <td>${escapeHtml(p.phone || "-")}</td>
-          <td class="actions">
-            <button class="btn small edit" data-id="${p.id}">Düzenle</button>
-            <button class="btn small danger del" data-id="${p.id}">Sil</button>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    const rows = filteredPersonnel().map(p => `
+      <tr>
+        <td><b>${escapeHtml(getName(p) || "-")}</b></td>
+        <td>${escapeHtml(titleLabel(p.title))}</td>
+        <td>${escapeHtml(getProjectName(p.projectId))}</td>
+        <td>${escapeHtml(p.status || "-")}</td>
+        <td>${escapeHtml(p.startDate || "-")}</td>
+        <td>${escapeHtml(p.phone || "-")}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn small edit" data-id="${p.id}">Düzenle</button>
+          <button class="btn small danger del" data-id="${p.id}">Sil</button>
+        </td>
+      </tr>
+    `).join("");
 
-    tbody.innerHTML = rows;
-
-    tbody.querySelectorAll(".del").forEach(btn => {
-      btn.onclick = async () => {
-        const id = btn.dataset.id;
-        if(confirm("Personeli silmek istiyor musun?")){
-          await deleteDoc(doc(db, "personnel", id));
-          await loadPersonnel();
-        }
-      };
-    });
+    tbody.innerHTML = rows || `<tr><td colspan="7" style="opacity:.6;">Kayıt yok</td></tr>`;
 
     tbody.querySelectorAll(".edit").forEach(btn => {
       btn.onclick = () => openEdit(btn.dataset.id);
     });
+    tbody.querySelectorAll(".del").forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.id;
+        if(confirm("Personel silinsin mi?")){
+          await deleteDoc(doc(db,"personnel",id));
+          await loadPersonnel();
+        }
+      };
+    });
+  }
+
+  function openForm(){
+    formCard.style.display = "block";
+  }
+
+  function closeForm(){
+    formCard.style.display = "none";
+    editingId = null;
+    formTitle.textContent = "Yeni Personel";
+    pName.value = "";
+    pTitle.value = "danisman";
+    pProjectId.value = "";
+    pStatus.value = "aktif";
+    pStartDate.value = "";
+    pPhone.value = "";
   }
 
   function openEdit(id){
     const p = personnel.find(x => x.id === id);
     if(!p) return;
+
     editingId = id;
+    formTitle.textContent = "Personel Düzenle";
+    openForm();
 
-    setFormVisible(true);
-
-    if(pName) pName.value = getName(p);
-    if(pPhone) pPhone.value = p.phone || "";
-    if(pStartDate) pStartDate.value = p.startDate || "";
-    if(pStatus) pStatus.value = p.status || "aktif";
-    if(pProjectId) pProjectId.value = p.projectId || "";
-    if(pTitle){
-      if(pTitle.tagName === "SELECT") pTitle.value = p.title || TITLES[0].value;
-      else pTitle.value = p.title || "";
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    pName.value      = getName(p);
+    pTitle.value     = p.title || "danisman";
+    pProjectId.value = p.projectId || "";
+    pStatus.value    = p.status || "aktif";
+    pStartDate.value = p.startDate || "";
+    pPhone.value     = p.phone || "";
   }
 
-  async function save(){
-    const name = (pName?.value || "").trim();
-    const title = (pTitle?.value || TITLES[0].value);
-    const projectId = (pProjectId?.value || "");
-    const status = (pStatus?.value || "aktif");
-    const startDate = (pStartDate?.value || "");
-    const phone = (pPhone?.value || "");
+  saveBtn.onclick = async () => {
+    const name = pName.value.trim();
+    const title = pTitle.value;
+    const projectId = pProjectId.value || "";
+    const status = pStatus.value || "aktif";
+    const startDate = pStartDate.value || "";
+    const phone = pPhone.value.trim();
 
     if(!name){
       alert("Ad Soyad boş olamaz");
@@ -318,15 +266,8 @@
     }
 
     const payload = {
-      // iki alanı da yazıyoruz (eski scriptler bozulmasın)
-      name,
-      fullName: name,
-      title,
-      titleLabel: TITLES.find(t=>t.value===title)?.label || title,
-      projectId,
-      status,
-      startDate,
-      phone,
+      name, title, projectId, status,
+      startDate, phone,
       createdAt: new Date()
     };
 
@@ -336,23 +277,29 @@
       await addDoc(personnelRef, payload);
     }
 
-    clearForm();
-    setFormVisible(false);
+    closeForm();
     await loadPersonnel();
-  }
+  };
 
-  // ---- Loaders ----
+  cancelBtn.onclick = closeForm;
+  addBtn.onclick = () => {
+    editingId = null;
+    formTitle.textContent = "Yeni Personel";
+    openForm();
+  };
+
   async function loadProjects(){
     const snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
-    projects = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    projects = snap.docs.map(d => ({id:d.id, ...d.data()}));
 
-    const options = `
-      <option value="">Tüm Projeler</option>
-      ${projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"-")}</option>`).join("")}
-    `;
+    const options = [
+      `<option value="">Tüm Projeler</option>`,
+      ...projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+    ].join("");
 
-    if(projectFilter) projectFilter.innerHTML = options;
-    if(pProjectId) pProjectId.innerHTML = `<option value="">-</option>` + projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name||"-")}</option>`).join("");
+    projectFilter.innerHTML = options;
+    pProjectId.innerHTML = `<option value="">Proje Seç (ops.)</option>` + 
+      projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   }
 
   async function loadPersonnel(){
@@ -361,36 +308,17 @@
     render();
   }
 
-  function initTitleSelect(){
-    if(pTitle && pTitle.tagName === "SELECT"){
-      pTitle.innerHTML = TITLES.map(t=>`<option value="${t.value}">${t.label}</option>`).join("");
-    }
-  }
+  // filtre/arama eventleri
+  qInput.oninput = render;
+  projectFilter.onchange = render;
+  statusFilter.onchange = render;
 
-  // ---- Events ----
-  addBtn.onclick = () => {
-    clearForm();
-    initTitleSelect();
-    setFormVisible(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  saveBtn.onclick = save;
-  cancelBtn?.onclick = () => { clearForm(); setFormVisible(false); };
-
-  qInput?.addEventListener("input", render);
-  projectFilter?.addEventListener("change", render);
-  statusFilter?.addEventListener("change", render);
-
-  // ---- Start ----
+  // init
   window.addEventListener("DOMContentLoaded", async () => {
-    initTitleSelect();
     await loadProjects();
     await loadPersonnel();
-    setFormVisible(false);
   });
-</script>
 
+</script>
 </body>
 </html>
-
