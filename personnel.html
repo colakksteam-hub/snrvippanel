@@ -186,6 +186,10 @@ function titleLabel(v){
     const q = (qInput.value || "").toLowerCase().trim();
     const pFilter = projectFilter.value || "";
     const sFilter = statusFilter.value || "";
+    function getName(p){
+  return (p.name || p.fullName || p.adSoyad || p.ad || "").trim();
+}
+
 
     return personnel.filter(p => {
       const matchesQ =
