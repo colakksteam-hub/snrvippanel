@@ -302,22 +302,28 @@
       projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   }
 
-  async function loadPersonnel(){
-    const snap = await getDocs(query(personnelRef, orderBy("createdAt","desc")));
-    personnel = snap.docs.map(normalizeDoc);
-    render();
+  async function loadProjects(){
+  let snap;
+  try {
+    snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
+  } catch(e){
+    // eski projelerde createdAt yoksa buraya düşer
+    console.warn("projects createdAt yok, orderBy kaldırıldı");
+    snap = await getDocs(projectsRef);
   }
 
-  // filtre/arama eventleri
-  qInput.oninput = render;
-  projectFilter.onchange = render;
-  statusFilter.onchange = render;
+  projects = snap.docs.map(d => ({id:d.id, ...d.data()}));
 
-  // init
-  window.addEventListener("DOMContentLoaded", async () => {
-    await loadProjects();
-    await loadPersonnel();
-  });
+  const options = [
+    `<option value="">Tüm Projeler</option>`,
+    ...projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+  ].join("");
+
+  projectFilter.innerHTML = options;
+  pProjectId.innerHTML =
+    `<option value="">Proje Seç (ops.)</option>` +
+    projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+}
 
 </script>
 </body>
