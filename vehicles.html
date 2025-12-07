@@ -1,3 +1,48 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SNR VIP | Araçlar</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">SNR</div>
+      <div>
+        <div class="title">SNR VIP</div>
+        <div class="sub">Güvenlik & Koruma</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a href="dashboard.html">🏠 Dashboard</a>
+      <a href="projects.html">🏗️ Proje Paneli</a>
+      <a href="personnel.html">👮 Personel</a>
+      <a class="active" href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 style="margin:0;">Araçlar</h1>
+      <div class="user">
+        <div class="pill" id="currentUser">Yönetici</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input id="q" placeholder="Plaka / marka ara"/>
+      <button id="addBtn" class="btn primary">+ Araç Ekle</button>
+    </div>
+
+    <div id="vehiclesList" class="list"></div>
+  </main>
+</div>
+
 <script type="module">
   import { requireAuth } from "./guard.js";
   import { db } from "./firebase.js";
@@ -8,10 +53,9 @@
 
   requireAuth();
 
-  const colRef = collection(db, "vehicles"); // koleksiyon adı
+  const colRef = collection(db, "vehicles");
+  const listEl = document.getElementById("vehiclesList");
 
-  // ✅ buradaki id'ler HTML'de birebir olmalı
-  const listEl = document.getElementById("vehiclesList") || document.querySelector(".list");
   let vehicles = [];
   let addRowOpen = false;
 
@@ -36,9 +80,9 @@
   function addRowTemplate(){
     return `
       <div class="row new-row">
-        <div class="cell"><input id="vPlate" placeholder="Plaka"/></div>
-        <div class="cell"><input id="vBrand" placeholder="Marka/Model"/></div>
-        <div class="cell"><input id="vProject" placeholder="Bağlı Proje"/></div>
+        <div class="cell"><input id="vPlate" placeholder="Plaka (34 ABC 123)" /></div>
+        <div class="cell"><input id="vBrand" placeholder="Marka / Model" /></div>
+        <div class="cell"><input id="vProject" placeholder="Bağlı Proje (ops.)" /></div>
         <div class="cell">
           <select id="vStatus">
             <option value="aktif">Aktif</option>
@@ -54,10 +98,21 @@
     `;
   }
 
+  function filtered(){
+    const qEl = document.getElementById("q");
+    const q = (qEl?.value || "").toLowerCase().trim();
+    if(!q) return vehicles;
+    return vehicles.filter(v =>
+      (v.plate||"").toLowerCase().includes(q) ||
+      (v.brand||"").toLowerCase().includes(q)
+    );
+  }
+
   function render(){
+    const items = filtered();
     listEl.innerHTML = `
       ${addRowOpen ? addRowTemplate() : ""}
-      ${vehicles.map(rowTemplate).join("")}
+      ${items.map(rowTemplate).join("")}
     `;
 
     if(addRowOpen){
@@ -84,10 +139,10 @@
   function closeAddRow(){ addRowOpen = false; render(); }
 
   async function saveNew(){
-    const plate = (document.getElementById("vPlate").value || "").trim();
-    const brand = (document.getElementById("vBrand").value || "").trim();
-    const projectName = (document.getElementById("vProject").value || "").trim();
-    const status = document.getElementById("vStatus").value;
+    const plate = (document.getElementById("vPlate")?.value || "").trim();
+    const brand = (document.getElementById("vBrand")?.value || "").trim();
+    const projectName = (document.getElementById("vProject")?.value || "").trim();
+    const status = document.getElementById("vStatus")?.value || "aktif";
 
     if(!plate){ alert("Plaka boş olamaz"); return; }
 
@@ -146,9 +201,14 @@
   }
 
   window.addEventListener("DOMContentLoaded", () => {
-    const addBtn = document.getElementById("addBtn"); // buton id aynı olmalı
-    if(!addBtn || !listEl){ console.error("vehicles addBtn/list bulunamadı"); return; }
+    const addBtn = document.getElementById("addBtn");
+    if(!addBtn){ console.error("addBtn yok"); return; }
+
     addBtn.onclick = openAddRow;
+    document.getElementById("q").oninput = render;
+
     load();
   });
 </script>
+</body>
+</html>
