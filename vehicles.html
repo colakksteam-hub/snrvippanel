@@ -1,45 +1,37 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SNR VIP | Araçlar</title>
-  <link rel="stylesheet" href="styles.css"/>
-</head>
+<!DOCTYPE html><html lang="tr"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SNR VIP | Araçlar</title><link rel="stylesheet" href="styles.css"/></head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand">
-      <div class="logo">SNR</div>
-      <div>
-        <div class="title">SNR VIP</div>
-        <div class="sub">Güvenlik & Koruma</div>
-      </div>
-    </div>
-
+    <div class="brand"><div class="logo">SNR</div><div><div class="title">SNR VIP</div><div class="sub">Güvenlik & Koruma</div></div></div>
     <nav class="nav">
-      <a href="dashboard.html">🏠 Dashboard</a>
-      <a href="projects.html">🏗️ Proje Paneli</a>
-      <a href="personnel.html">👮 Personel</a>
-      <a class="active" href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a href="dashboard.html">🏠 Dashboard</a><a href="projects.html">🏗️ Proje Paneli</a>
+      <a href="personnel.html">👮 Personel</a><a class="active" href="vehicles.html">🚗 Araç Yönetimi</a>
       <a href="#" onclick="logout()">🚪 Çıkış</a>
     </nav>
   </aside>
-
   <main class="main">
-    <div class="topbar">
-      <h1 style="margin:0;">Araçlar</h1>
-      <div class="user">
-        <div class="pill" id="currentUser">Yönetici</div>
+    <div class="topbar"><h1 style="margin:0;">Araçlar</h1><div class="user"><div class="pill" id="currentUser">Yönetici</div></div></div>
+    <div class="toolbar">
+      <input id="q" placeholder="Araç ara (plaka/model)"/>
+      <select id="projectFilter"></select>
+      <select id="statusFilter"><option value="">Tüm Durumlar</option><option value="aktif">Aktif</option><option value="serviste">Serviste</option><option value="pasif">Pasif</option></select>
+      <button id="addBtn">+ Araç Ekle</button>
+    </div>
+    <table><thead><tr><th>Plaka</th><th>Model</th><th>Proje</th><th>Durum</th><th>KM</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody></table>
+
+    <div id="formCard" class="card" style="display:none;">
+      <h2 id="formTitle">Yeni Araç</h2>
+      <div class="toolbar">
+        <input id="plate" placeholder="Plaka"/><input id="brandModel" placeholder="Marka/Model"/>
+        <select id="projectId"></select>
+        <select id="status"><option value="aktif">Aktif</option><option value="serviste">Serviste</option><option value="pasif">Pasif</option></select>
+        <input id="km" type="number" placeholder="KM"/>
+        <button id="saveBtn">Kaydet</button><button class="secondary" id="cancelBtn">İptal</button>
       </div>
     </div>
-
-    <div class="toolbar">
-      <input id="q" placeholder="Plaka / marka ara"/>
-      <button id="addBtn" class="btn primary">+ Araç Ekle</button>
-    </div>
-
-    <div id="vehiclesList" class="list"></div>
   </main>
 </div>
 
@@ -54,7 +46,24 @@
   requireAuth();
 
   const colRef = collection(db, "vehicles");
-  const listEl = document.getElementById("vehiclesList");
+
+  // ✅ BUTON ve LİSTEYİ ID yerine daha sağlam şekilde buluyoruz
+  const addBtn =
+    document.getElementById("addBtn") ||
+    document.getElementById("addVehicleBtn") ||
+    document.querySelector("button.primary") ||
+    [...document.querySelectorAll("button")].find(b => b.textContent.toLowerCase().includes("araç ekle"));
+
+  const listEl =
+    document.getElementById("vehiclesList") ||
+    document.getElementById("list") ||
+    document.getElementById("vehicleList") ||
+    document.querySelector(".list");
+
+  if (!addBtn || !listEl) {
+    console.error("vehicles: addBtn veya liste alanı bulunamadı. HTML'de buton/list isimleri farklı.");
+    throw new Error("vehicles addBtn/list missing");
+  }
 
   let vehicles = [];
   let addRowOpen = false;
@@ -80,7 +89,7 @@
   function addRowTemplate(){
     return `
       <div class="row new-row">
-        <div class="cell"><input id="vPlate" placeholder="Plaka (34 ABC 123)" /></div>
+        <div class="cell"><input id="vPlate" placeholder="Plaka" /></div>
         <div class="cell"><input id="vBrand" placeholder="Marka / Model" /></div>
         <div class="cell"><input id="vProject" placeholder="Bağlı Proje (ops.)" /></div>
         <div class="cell">
@@ -98,21 +107,10 @@
     `;
   }
 
-  function filtered(){
-    const qEl = document.getElementById("q");
-    const q = (qEl?.value || "").toLowerCase().trim();
-    if(!q) return vehicles;
-    return vehicles.filter(v =>
-      (v.plate||"").toLowerCase().includes(q) ||
-      (v.brand||"").toLowerCase().includes(q)
-    );
-  }
-
   function render(){
-    const items = filtered();
     listEl.innerHTML = `
       ${addRowOpen ? addRowTemplate() : ""}
-      ${items.map(rowTemplate).join("")}
+      ${vehicles.map(rowTemplate).join("")}
     `;
 
     if(addRowOpen){
@@ -200,15 +198,9 @@
     render();
   }
 
+  // ✅ DOM hazır olunca bağla
   window.addEventListener("DOMContentLoaded", () => {
-    const addBtn = document.getElementById("addBtn");
-    if(!addBtn){ console.error("addBtn yok"); return; }
-
     addBtn.onclick = openAddRow;
-    document.getElementById("q").oninput = render;
-
     load();
   });
 </script>
-</body>
-</html>
