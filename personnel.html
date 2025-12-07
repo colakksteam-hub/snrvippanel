@@ -59,27 +59,31 @@
       <tbody id="tbody"></tbody>
     </table>
 
+    <!-- Form -->
     <div id="formCard" class="card" style="display:none;">
-      <h2 id="formTitle">Yeni Personel</h2>
+      <h2 id="formTitle" style="margin-top:0;">Yeni Personel</h2>
       <div class="toolbar">
-        <input id="pName" placeholder="Ad Soyad"/>
+        <input id="pFullName" placeholder="Ad Soyad"/>
         <select id="pTitle">
           <option value="vardiya_amiri">Vardiya Amiri</option>
           <option value="danisman">Danışman</option>
           <option value="yonetim">Yönetim</option>
         </select>
+
         <select id="pProjectId"></select>
+
         <select id="pStatus">
           <option value="aktif">Aktif</option>
           <option value="pasif">Pasif</option>
         </select>
+
         <input id="pStartDate" type="date" />
         <input id="pPhone" placeholder="Telefon (ops.)"/>
+
         <button id="saveBtn">Kaydet</button>
         <button class="secondary" id="cancelBtn">İptal</button>
       </div>
     </div>
-
   </main>
 </div>
 
@@ -93,93 +97,64 @@
 
   requireAuth();
 
-  // refs
   const personnelRef = collection(db, "personnel");
   const projectsRef  = collection(db, "projects");
 
-  // elements
-  const qInput = document.getElementById("q");
+  const qInput        = document.getElementById("q");
   const projectFilter = document.getElementById("projectFilter");
-  const statusFilter = document.getElementById("statusFilter");
-  const addBtn = document.getElementById("addBtn");
-  const tbody = document.getElementById("tbody");
-  const formCard = document.getElementById("formCard");
-  const formTitle = document.getElementById("formTitle");
+  const statusFilter  = document.getElementById("statusFilter");
+  const addBtn        = document.getElementById("addBtn");
+  const tbody         = document.getElementById("tbody");
 
-  const pName = document.getElementById("pName");
-  const pTitle = document.getElementById("pTitle");
+  const formCard   = document.getElementById("formCard");
+  const formTitle  = document.getElementById("formTitle");
+  const saveBtn    = document.getElementById("saveBtn");
+  const cancelBtn  = document.getElementById("cancelBtn");
+
+  const pFullName  = document.getElementById("pFullName");
+  const pTitle     = document.getElementById("pTitle");
   const pProjectId = document.getElementById("pProjectId");
-  const pStatus = document.getElementById("pStatus");
+  const pStatus    = document.getElementById("pStatus");
   const pStartDate = document.getElementById("pStartDate");
-  const pPhone = document.getElementById("pPhone");
-  const saveBtn = document.getElementById("saveBtn");
-  const cancelBtn = document.getElementById("cancelBtn");
+  const pPhone     = document.getElementById("pPhone");
 
-  // state
   let personnel = [];
-  let projects = [];
+  let projects  = [];
   let editingId = null;
 
   const escapeHtml = (s="") =>
-    s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    s.replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
 
-  // Firestore doc -> UI obj (isim alanı neyse bul)
-  const normalizeDoc = (d) => {
-    const raw = d.data() || {};
-
-    const possibleNameKeys = [
-      "name","adSoyad","fullName","fullname","full_name",
-      "isim","ad","soyad","ad_soyad","personel","personelAdi"
-    ];
-
-    let foundName = "";
-    for (const k of possibleNameKeys){
-      if (typeof raw[k] === "string" && raw[k].trim()){
-        foundName = raw[k].trim();
-        break;
-      }
-    }
-    if(!foundName){
-      const anyString = Object.values(raw).find(v => typeof v === "string" && v.trim());
-      foundName = anyString ? anyString.trim() : "";
-    }
-
-    return {
-      id: d.id,
-      name: foundName,
-      title: raw.title || raw.unvan || "danisman",
-      projectId: raw.projectId || "",
-      status: raw.status || "aktif",
-      startDate: raw.startDate || "",
-      phone: raw.phone || "",
-      createdAt: raw.createdAt || null
-    };
-  };
-
-  const titleLabel = (t) => {
-    if(t === "vardiya_amiri") return "Vardiya Amiri";
-    if(t === "yonetim") return "Yönetim";
+  function titleLabel(t){
+    if(t==="vardiya_amiri") return "Vardiya Amiri";
+    if(t==="yonetim") return "Yönetim";
     return "Danışman";
-  };
+  }
 
-  const getProjectName = (pid) => {
+  function getProjectName(pid){
     const p = projects.find(x => x.id === pid);
     return p ? p.name : "-";
-  };
+  }
 
   function filteredPersonnel(){
     const q = (qInput.value || "").toLowerCase().trim();
-    const pFilter = projectFilter.value || "";
-    const sFilter = statusFilter.value || "";
+    const pf = projectFilter.value || "";
+    const sf = statusFilter.value || "";
 
-    return personnel.filter(p => {
+    return personnel.filter(p=>{
+      const name = (p.fullName || p.name || p.adSoyad || "").toLowerCase();
+      const title = (p.title || "").toLowerCase();
+
       const matchesQ =
-        !q ||
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.title || "").toLowerCase().includes(q);
+        !q || name.includes(q) || title.includes(q);
 
-      const matchesProject = !pFilter || p.projectId === pFilter;
-      const matchesStatus  = !sFilter || p.status === sFilter;
+      const matchesProject =
+        !pf || p.projectId === pf;
+
+      const matchesStatus =
+        !sf || p.status === sf;
 
       return matchesQ && matchesProject && matchesStatus;
     });
@@ -188,43 +163,48 @@
   function render(){
     const rows = filteredPersonnel().map(p => `
       <tr>
-        <td><b>${escapeHtml(p.name || "-")}</b></td>
-        <td>${escapeHtml(titleLabel(p.title))}</td>
+        <td><b>${escapeHtml(p.fullName || p.name || p.adSoyad || "-")}</b></td>
+        <td>${escapeHtml(titleLabel(p.title || "danisman"))}</td>
         <td>${escapeHtml(getProjectName(p.projectId))}</td>
-        <td>${escapeHtml(p.status || "-")}</td>
+        <td>${escapeHtml(p.status || "aktif")}</td>
         <td>${escapeHtml(p.startDate || "-")}</td>
         <td>${escapeHtml(p.phone || "-")}</td>
         <td style="white-space:nowrap;">
+          <a class="btn small" href="personnel_detail.html?id=${p.id}">Detay</a>
+          <a class="btn small" href="personnel_history.html?id=${p.id}">Geçmiş</a>
           <button class="btn small edit" data-id="${p.id}">Düzenle</button>
           <button class="btn small danger del" data-id="${p.id}">Sil</button>
         </td>
       </tr>
     `).join("");
 
-    tbody.innerHTML = rows || "";
+    tbody.innerHTML = rows || `
+      <tr><td colspan="7" style="opacity:.6;">Kayıt yok</td></tr>
+    `;
 
-    // bind actions
-    tbody.querySelectorAll(".edit").forEach(btn=>{
-      btn.onclick = () => openEdit(btn.dataset.id);
-    });
     tbody.querySelectorAll(".del").forEach(btn=>{
-      btn.onclick = async () => {
+      btn.onclick = async ()=>{
         const id = btn.dataset.id;
         if(confirm("Personeli silmek istiyor musun?")){
-          await deleteDoc(doc(db,"personnel", id));
+          await deleteDoc(doc(db,"personnel",id));
           await loadPersonnel();
         }
-      };
+      }
+    });
+
+    tbody.querySelectorAll(".edit").forEach(btn=>{
+      btn.onclick = ()=> openEdit(btn.dataset.id);
     });
   }
 
   function openForm(){
     formCard.style.display = "block";
+    formTitle.textContent = editingId ? "Personel Düzenle" : "Yeni Personel";
   }
   function closeForm(){
     formCard.style.display = "none";
     editingId = null;
-    pName.value = "";
+    pFullName.value = "";
     pTitle.value = "danisman";
     pProjectId.value = "";
     pStatus.value = "aktif";
@@ -234,7 +214,6 @@
 
   function openAdd(){
     editingId = null;
-    formTitle.textContent = "Yeni Personel";
     openForm();
   }
 
@@ -243,79 +222,77 @@
     if(!p) return;
 
     editingId = id;
-    formTitle.textContent = "Personel Düzenle";
-    openForm();
-
-    pName.value = p.name || "";
-    pTitle.value = p.title || "danisman";
+    pFullName.value  = p.fullName || p.name || p.adSoyad || "";
+    pTitle.value     = p.title || "danisman";
     pProjectId.value = p.projectId || "";
-    pStatus.value = p.status || "aktif";
+    pStatus.value    = p.status || "aktif";
     pStartDate.value = p.startDate || "";
-    pPhone.value = p.phone || "";
+    pPhone.value     = p.phone || "";
+
+    openForm();
   }
 
-  async function save(){
-    const name = (pName.value || "").trim();
-    const title = pTitle.value || "danisman";
+  saveBtn.onclick = async ()=>{
+    const fullName  = (pFullName.value || "").trim();
+    const title     = pTitle.value || "danisman";
     const projectId = pProjectId.value || "";
-    const status = pStatus.value || "aktif";
+    const status    = pStatus.value || "aktif";
     const startDate = pStartDate.value || "";
-    const phone = (pPhone.value || "").trim();
+    const phone     = (pPhone.value || "").trim();
 
-    if(!name){
-      alert("Ad Soyad boş olamaz!");
+    if(!fullName){
+      alert("Ad Soyad boş olamaz");
       return;
     }
 
     const payload = {
-      name, title, projectId, status, startDate, phone,
-      createdAt: new Date()
+      fullName, title, projectId, status, startDate, phone
     };
 
     if(editingId){
-      delete payload.createdAt;
-      await updateDoc(doc(db,"personnel", editingId), payload);
-    }else{
-      await addDoc(personnelRef, payload);
+      await updateDoc(doc(db,"personnel",editingId), payload);
+    } else {
+      await addDoc(personnelRef, {
+        ...payload,
+        createdAt: new Date()
+      });
     }
 
     closeForm();
     await loadPersonnel();
-  }
+  };
+
+  cancelBtn.onclick = closeForm;
 
   async function loadProjects(){
     const snap = await getDocs(query(projectsRef, orderBy("createdAt","desc")));
-    projects = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    projects = snap.docs.map(d=>({id:d.id, ...d.data()}));
 
-    // filter dropdown
-    projectFilter.innerHTML = `
+    const opts = `
       <option value="">Tüm Projeler</option>
       ${projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}
     `;
+    projectFilter.innerHTML = opts;
 
-    // form dropdown
+    // Form içindeki proje dropdown
     pProjectId.innerHTML = `
-      <option value="">Proje (ops.)</option>
+      <option value="">Proje seç (ops.)</option>
       ${projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}
     `;
   }
 
   async function loadPersonnel(){
     const snap = await getDocs(query(personnelRef, orderBy("createdAt","desc")));
-    personnel = snap.docs.map(normalizeDoc);
+    personnel = snap.docs.map(d=>({id:d.id, ...d.data()}));
     render();
   }
-
-  // events
-  addBtn.onclick = openAdd;
-  saveBtn.onclick = save;
-  cancelBtn.onclick = closeForm;
 
   qInput.oninput = render;
   projectFilter.onchange = render;
   statusFilter.onchange = render;
+  addBtn.onclick = openAdd;
 
-  window.addEventListener("DOMContentLoaded", async () => {
+  window.addEventListener("DOMContentLoaded", async ()=>{
     await loadProjects();
     await loadPersonnel();
   });
