@@ -2,69 +2,89 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SNR VIP | Personel Seed</title>
 </head>
-<body>
-  <h2>Personel seed çalışıyor... Sayfayı kapatma.</h2>
+<body style="font-family:system-ui;padding:24px">
+  <h1>Personel Seed</h1>
+  <p>Bu sayfa sadece bir kere çalıştırılır. İş bitince silebilirsin.</p>
+  <button id="run" style="padding:10px 14px;font-size:16px">Personelleri Ekle</button>
+  <pre id="log" style="margin-top:16px;white-space:pre-wrap"></pre>
 
-  <script type="module">
-    import { db } from "./firebase.js";
-    import {
-      collection, addDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script type="module">
+  import { db } from "./firebase.js";
+  import { 
+    collection, addDoc, getDocs, query, where 
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const colRef = collection(db, "personnel");
+  const logEl = document.getElementById("log");
+  const log = (m)=> logEl.textContent += m + "\n";
 
-    const people = [
-      { name: "SELAHATTİN ENSAL", title: "VARDİYA AMİRİ" },
-      { name: "MUHAMMET ÇINAR",   title: "VARDİYA AMİRİ" },
+  // ✅ Liste (amir olanları vardiya_amiri, diğerleri danisman)
+  const personnelSeed = [
+    { name: "Selahattin Ensal", title: "vardiya_amiri" },
+    { name: "Muhammet Çınar", title: "vardiya_amiri" },
 
-      { name: "CİHAN ARSLAN",       title: "DANIŞMAN" },
-      { name: "ATTİLA UZANAY",      title: "DANIŞMAN" },
-      { name: "ONUR ÇOLAK",         title: "DANIŞMAN" },
+    { name: "Cihan Arslan", title: "danisman" },
+    { name: "Atilla Uzunay", title: "danisman" },
+    { name: "Onur Çolak", title: "danisman" },
+    { name: "İbrahim Işık", title: "danisman" },
+    { name: "İzzet Bozukluhan", title: "danisman" },
+    { name: "Gökhan İpek", title: "danisman" },
+    { name: "Mehmet Taha Aslan", title: "danisman" },
+    { name: "Arda Gökkaya", title: "danisman" },
+    { name: "Ahmet Doğan", title: "danisman" },
+    { name: "Ahmet Horoz", title: "danisman" },
+    { name: "Ömer Baydar", title: "danisman" },
+    { name: "Gürkan Torzuk", title: "danisman" },
+    { name: "Emre Ateş", title: "danisman" },
+    { name: "Emre Çakmak", title: "danisman" },
+    { name: "Oğuzhan Yıldırım", title: "danisman" },
+    { name: "Mazlum Kabala", title: "danisman" },
+    { name: "Mahsun Çetin", title: "danisman" },
+    { name: "Ekrem Güler", title: "danisman" },
+    { name: "Harun Yorgun", title: "danisman" },
+    { name: "Cihan Faruk Ataş", title: "danisman" }
+  ];
 
-      { name: "İBRAHİM IŞIK",       title: "DANIŞMAN" },
-      { name: "İZZET BOZUKLUHAN",   title: "DANIŞMAN" },
-      { name: "GÖKHAN İPEK",        title: "DANIŞMAN" },
-      { name: "MEHMET TAHA ASLAN",  title: "DANIŞMAN" },
-      { name: "ARDA GÖKKAYA",       title: "DANIŞMAN" },
+  const colRef = collection(db, "personnel");
 
-      { name: "AHMET DOĞAN",        title: "DANIŞMAN" },
-      { name: "AHMET HOROZ",        title: "DANIŞMAN" },
-      { name: "ÖMER BAYDAR",        title: "DANIŞMAN" },
-      { name: "GÜRKAN TORZUK",      title: "DANIŞMAN" },
+  // aynı isim varsa tekrar basmasın diye kontrol
+  async function existsByName(name){
+    const snap = await getDocs(query(colRef, where("name","==",name)));
+    return !snap.empty;
+  }
 
-      { name: "EMRE ATEŞ",          title: "DANIŞMAN" },
-      { name: "EMRE ÇAKMAK",        title: "DANIŞMAN" },
-      { name: "OĞUZHAN YILDIRIM",   title: "DANIŞMAN" },
-      { name: "MAZLUM KABALA",      title: "DANIŞMAN" },
+  async function runSeed(){
+    log("Seed başlıyor...");
+    let added = 0, skipped = 0;
 
-      { name: "MAHSUN ÇETİN",       title: "DANIŞMAN" },
-      { name: "EKREM GÜLER",        title: "DANIŞMAN" },
-      { name: "HARUN YORGUN",       title: "DANIŞMAN" },
-      { name: "CİHAN FARUK ATAŞ",   title: "DANIŞMAN" },
-    ];
+    for(const p of personnelSeed){
+      if(await existsByName(p.name)){
+        skipped++;
+        log("Zaten var, geçildi: " + p.name);
+        continue;
+      }
 
-    let ok = 0;
-
-    for (const p of people) {
       await addDoc(colRef, {
         name: p.name,
-        fullName: p.name,
-        title: p.title,
+        title: p.title,       // vardiya_amiri / danisman
+        projectId: "",        // şimdilik boş, sonra seçersin
         status: "aktif",
-        projectId: "",
-        projectName: "",
-        startDate: null,
+        startDate: null,      // işe giriş tarihini sonra girersin
         phone: "",
-        createdAt: serverTimestamp()
+        createdAt: new Date()
       });
-      ok++;
-      console.log("Eklendi:", p.name);
+
+      added++;
+      log("Eklendi: " + p.name);
     }
 
-    alert("✅ Seed bitti. Eklenen personel: " + ok);
-    document.body.innerHTML += "<h3>✅ Seed bitti. Eklenen personel: "+ok+"</h3>";
-  </script>
+    log(`\nBitti. Eklenen: ${added}, Zaten vardı: ${skipped}`);
+    alert("SEED OK ✅  Eklenen: " + added + " / Geçilen: " + skipped);
+  }
+
+  document.getElementById("run").onclick = runSeed;
+</script>
 </body>
 </html>
