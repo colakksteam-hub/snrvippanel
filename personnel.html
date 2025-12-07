@@ -69,11 +69,12 @@
         
         <!-- Ünvan seçmeli -->
         <select id="pTitle">
-          <option value="">Ünvan Seç</option>
-          <option value="vardiya_amiri">Vardiya Amiri</option>
-          <option value="danisman">Danışman</option>
-          <option value="yonetim">Yönetim</option>
-        </select>
+  <option value="">Ünvan Seç</option>
+  <option value="VARDIYA AMİRİ">VARDIYA AMİRİ</option>
+  <option value="DANIŞMAN">DANIŞMAN</option>
+  <option value="YÖNETİM">YÖNETİM</option>
+</select>
+
 
         <select id="pProjectId"></select>
 
@@ -136,10 +137,9 @@
     }[m]));
 
   function titleLabel(v){
-    if(v==="vardiya_amiri") return "Vardiya Amiri";
-    if(v==="danisman") return "Danışman";
-    if(v==="yonetim") return "Yönetim";
-    return v || "-";
+  return v || "-";  // artık direkt string kaydediyoruz
+}
+
   }
 
   function getProjectName(pid){
