@@ -189,9 +189,10 @@ function titleLabel(v){
 
     return personnel.filter(p => {
       const matchesQ =
-        !q ||
-        (p.fullName || "").toLowerCase().includes(q) ||
-        (p.title || "").toLowerCase().includes(q);
+  !q ||
+  (p.name || p.fullName || p.adSoyad || "").toLowerCase().includes(q) ||
+  (p.title || "").toLowerCase().includes(q);
+
 
       const matchesProject = !pFilter || p.projectId === pFilter;
       const matchesStatus  = !sFilter || p.status === sFilter;
