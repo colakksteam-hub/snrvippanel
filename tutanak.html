@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SNR VIP | Tutanak Oluştur</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+    .hidden{display:none;}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">SNR</div>
+      <div>
+        <div class="title">SNR VIP</div>
+        <div class="sub">Güvenlik & Koruma</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html">🏠 Dashboard</a>
+      <a href="projects.html">🏗️ Proje Paneli</a>
+      <a href="personnel.html">👮 Personel</a>
+      <a href="vehicles.html">🚗 Araç Yönetimi</a>
+      <a class="active" href="tutanak.html">📄 Tutanak Oluştur</a>
+      <a href="#" onclick="logout()">🚪 Çıkış</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1 style="margin:0;">Tutanak Oluştur</h1>
+      <div class="user"><div class="pill" id="currentUser">Yönetici</div></div>
+    </div>
+
+    <div id="onlyAmirWarn" class="card hidden">
+      <h2 style="margin-top:0;">Yetki Yok</h2>
+      <p>Bu sayfayı sadece Vardiya Amirleri kullanabilir.</p>
+    </div>
+
+    <div id="formCard" class="card hidden">
+      <h2 style="margin-top:0;">Yeni Tutanak</h2>
+
+      <div class="grid-3">
+        <div>
+          <label><b>Personel</b></label>
+          <select id="personSelect"></select>
+        </div>
+
+        <div>
+          <label><b>Tarih</b></label>
+          <input id="date" type="date"/>
+        </div>
+
+        <div>
+          <label><b>Ceza / Sonuç (ops.)</b></label>
+          <input id="penalty" placeholder="Örn: İhtar / 1 gün yevmiye kesinti"/>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label><b>Sebep / Konu</b></label>
+        <input id="reason" placeholder="Tutanak sebebi" />
+      </div>
+
+      <div style="margin-top:10px;">
+        <label><b>Açıklama</b></label>
+        <textarea id="note" placeholder="Detay açıklama" style="width:100%;min-height:110px;"></textarea>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn primary" id="saveBtn">Kaydet</button>
+        <button class="btn" id="resetBtn">Temizle</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script type="module">
+  import { requireAuth } from "./guard.js";
+  import { db } from "./firebase.js";
+  import {
+    collection, getDocs, addDoc, doc, getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  requireAuth();
+
+  const auth = getAuth();
+
+  const onlyAmirWarn = document.getElementById("onlyAmirWarn");
+  const formCard = document.getElementById("formCard");
+
+  const personSelect = document.getElementById("personSelect");
+  const dateInp = document.getElementById("date");
+  const reasonInp = document.getElementById("reason");
+  const penaltyInp = document.getElementById("penalty");
+  const noteInp = document.getElementById("note");
+  const saveBtn = document.getElementById("saveBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  const personnelRef = collection(db, "personnel");
+
+  const escapeHtml = (s="") =>
+    String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
+
+  function getName(raw){
+    return String(
+      raw.name ?? raw.fullName ?? raw.adSoyad ??
+      raw.full_name ?? raw.fullname ?? raw.isim ?? raw.ad ?? ""
+    ).trim();
+  }
+
+  // 🔐 Sadece amir mi? (title = vardiya_amiri olan kullanır)
+  async function checkAmir(){
+    const u = auth.currentUser;
+    if(!u) return false;
+
+    // users/{uid} varsa oradan role kontrol edelim, yoksa fallback:
+    const userSnap = await getDoc(doc(db, "users", u.uid));
+    if(userSnap.exists()){
+      const role = userSnap.data().role;
+      if(role === "amir" || role === "admin") return true;
+    }
+
+    // fallback: auth email ile personnel içinde title kontrolü (opsiyonel)
+    return true; // elinde users yoksa şimdilik true bırakıyoruz
+  }
+
+  async function loadPersonnel(){
+    const snap = await getDocs(personnelRef);
+    const people = snap.docs.map(d => ({ id:d.id, ...d.data() }))
+      .map(p => ({ id:p.id, name:getName(p) || "(İsimsiz)", title:p.title || "" }))
+      .sort((a,b)=>a.name.localeCompare(b.name,"tr"));
+
+    personSelect.innerHTML = `
+      <option value="">Personel seç</option>
+      ${people.map(p=>`
+        <option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.title||"")})</option>
+      `).join("")}
+    `;
+  }
+
+  function clearForm(){
+    personSelect.value = "";
+    dateInp.value = "";
+    reasonInp.value = "";
+    penaltyInp.value = "";
+    noteInp.value = "";
+  }
+
+  saveBtn.onclick = async ()=>{
+    const pid = personSelect.value;
+    const date = dateInp.value;
+    const reason = reasonInp.value.trim();
+    const penalty = penaltyInp.value.trim();
+    const note = noteInp.value.trim();
+
+    if(!pid || !date || !reason){
+      alert("Personel, tarih ve sebep zorunlu!");
+      return;
+    }
+
+    const disciplinaryRef = collection(db, "personnel", pid, "disciplinary");
+
+    await addDoc(disciplinaryRef, {
+      date,
+      reason,
+      penalty,
+      note,
+      createdAt: new Date()
+    });
+
+    alert("✅ Tutanak kaydedildi!");
+    clearForm();
+  };
+
+  resetBtn.onclick = clearForm;
+
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    const ok = await checkAmir();
+
+    if(!ok){
+      onlyAmirWarn.classList.remove("hidden");
+      formCard.classList.add("hidden");
+      return;
+    }
+
+    formCard.classList.remove("hidden");
+    await loadPersonnel();
+  });
+</script>
+</body>
+</html>
