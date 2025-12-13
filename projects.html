@@ -1,208 +1,21 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SNR VIP | Projeler</title>
-
-  <style>
-    :root{
-      --bg:#f4f6fb;
-      --panel:#ffffff;
-      --text:#111827;
-      --muted:#6b7280;
-      --blue:#2563eb;
-      --blue-2:#1d4ed8;
-      --green:#16a34a;
-      --red:#ef4444;
-      --border:#e5e7eb;
-      --radius:14px;
-      --shadow:0 6px 16px rgba(17,24,39,.08);
-    }
-    *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-    body{margin:0;background:var(--bg);color:var(--text);}
-
-    .layout{display:flex;min-height:100vh;}
-    aside{
-      width:240px;background:#0b1220;color:#e5e7eb;padding:18px 14px;
-      display:flex;flex-direction:column;gap:8px;
-    }
-    .brand{font-weight:800;letter-spacing:.5px;font-size:20px;margin-bottom:8px;}
-    .brand small{display:block;font-weight:500;color:#9ca3af;font-size:12px;margin-top:2px;}
-    .nav a{
-      display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
-      color:#e5e7eb;text-decoration:none;font-size:15px;
-    }
-    .nav a:hover,.nav a.active{background:#121a2d;}
-
-    main{flex:1;padding:22px 26px;}
-    .topbar{
-      display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;
-    }
-    .topbar h1{margin:0;font-size:28px;}
-    .userpill{
-      background:var(--panel);padding:8px 12px;border-radius:999px;border:1px solid var(--border);
-      font-size:13px;color:var(--muted);
-    }
-
-    .controls{
-      display:flex;gap:10px;align-items:center;margin:14px 0 10px 0;
-    }
-    .controls input,.controls select{
-      background:var(--panel);border:1px solid var(--border);border-radius:10px;
-      padding:9px 11px;font-size:14px;outline:none;
-    }
-    .controls input{width:220px;}
-
-    .btn{
-      border:none;border-radius:10px;padding:9px 12px;font-weight:600;cursor:pointer;
-    }
-    .btn.blue{background:var(--blue);color:#fff;}
-    .btn.blue:hover{background:var(--blue-2);}
-    .btn.ghost{background:#eef2ff;color:#1f2a44;}
-    .btn.red{background:#fee2e2;color:#991b1b;}
-
-    .table{
-      background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);
-      padding:12px;border:1px solid var(--border);
-    }
-    .thead,.row{
-      display:grid;grid-template-columns: 1.3fr .9fr 1.2fr .7fr .9fr;gap:8px;align-items:center;
-    }
-    .thead{
-      padding:8px 10px;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;
-    }
-    .row{
-      padding:12px 10px;border-top:1px solid var(--border);font-size:14px;
-    }
-    .badge{
-      display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;
-      background:#dcfce7;color:#14532d;font-size:12px;font-weight:700;width:min-content;
-    }
-    .badge.passive{background:#fee2e2;color:#7f1d1d;}
-    .actions{display:flex;gap:8px;justify-content:flex-end;}
-
-    .form-card{
-      margin-top:14px;background:var(--panel);border-radius:var(--radius);
-      box-shadow:var(--shadow);padding:16px;border:1px solid var(--border);
-      display:none;
-    }
-    .form-card h2{margin:0 0 12px 0;font-size:20px;}
-    .form-grid{
-      display:grid;grid-template-columns: 1fr 1fr 1fr;gap:10px;
-    }
-    .form-grid input,.form-grid select{
-      width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;font-size:14px;
-      outline:none;background:#fff;
-    }
-    .form-actions{margin-top:12px;display:flex;gap:8px;}
-
-    @media (max-width:900px){
-      aside{display:none;}
-      .form-grid{grid-template-columns:1fr;}
-      .thead,.row{grid-template-columns: 1.2fr .9fr 1.1fr .7fr 1fr;}
-    }
-  </style>
-</head>
-
-<body>
-<div class="layout">
-
-  <aside>
-    <div class="brand">SNR <b>VIP</b><small>Güvenlik & Koruma</small></div>
-    <div class="nav">
-      <a href="dashboard.html">Dashboard</a>
-      <a class="active" href="projects.html">Proje Paneli</a>
-      <a href="personel.html">Personel</a>
-      <a href="vehicles.html">Araç Yönetimi</a>
-      <a href="exit.html">Çıkış</a>
-    </div>
-  </aside>
-
-  <main>
-    <div class="topbar">
-      <h1>Projeler</h1>
-      <div class="userpill" id="userEmail">...</div>
-    </div>
-
-    <div class="controls">
-      <input id="searchInput" placeholder="Proje ara" />
-      <select id="filterType">
-        <option value="all">Tümü</option>
-        <option value="fabrika">Fabrika</option>
-        <option value="şantiye">Şantiye</option>
-        <option value="ofis">Ofis</option>
-      </select>
-      <button class="btn blue" id="addBtn">+ Proje Ekle</button>
-    </div>
-
-    <div class="table">
-      <div class="thead">
-        <div>Proje</div>
-        <div>Tür</div>
-        <div>Lokasyon</div>
-        <div>Durum</div>
-        <div style="text-align:right;">İşlemler</div>
-      </div>
-      <div id="projectList"></div>
-    </div>
-
-    <!-- FORM -->
-    <div class="form-card" id="formCard">
-      <h2 id="formTitle">Yeni Proje</h2>
-
-      <div class="form-grid">
-        <input id="name" placeholder="Proje adı" />
-        <select id="type">
-          <option value="fabrika">Fabrika</option>
-          <option value="şantiye">Şantiye</option>
-          <option value="ofis">Ofis</option>
-        </select>
-        <input id="location" placeholder="Lokasyon" />
-
-        <input id="client" placeholder="Müşteri (ops.)" />
-        <select id="isActive">
-          <option value="true">Aktif</option>
-          <option value="false">Pasif</option>
-        </select>
-        <div></div>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn blue" id="saveBtn">Kaydet</button>
-        <button class="btn ghost" id="cancelBtn">İptal</button>
-      </div>
-    </div>
-  </main>
-</div>
-
-
-<!-- ✅ SCRIPT EN ALTTA ve type=module -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { requireAuth } from "./guard.js";
+  import { db } from "./firebase.js";
+
   import {
-    getFirestore, collection, getDocs, addDoc, doc,
-    updateDoc, deleteDoc, serverTimestamp, query, orderBy
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    collection, getDocs, addDoc, updateDoc, deleteDoc, doc,
+    query, orderBy, serverTimestamp, getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // ✅ SENİN CONFIG (DÜZELTİLMİŞ)
-  const firebaseConfig = {
-    apiKey: "AIzaSyAHZTI1E_WLe6qfAXu2uWUOx91YfHfarMgk",
-    authDomain: "snrvippanel.firebaseapp.com",
-    projectId: "snrvippanel",
-    storageBucket: "snrvippanel.appspot.com",
-    messagingSenderId: "1081915628150",
-    appId: "1:1081915628150:web:10b95399cd21687c5ddd57",
-    measurementId: "G-Q9KZ9E1CZD"
-  };
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+  // ✅ Misafir giremesin
+  requireAuth();
 
-  // Koleksiyon adı farklıysa burada değiştir
-  const colProjects = collection(db, "projects");
+  const auth = getAuth();
+
+  // Koleksiyon
+  const projectsRef = collection(db, "projects");
 
   // DOM
   const projectList = document.getElementById("projectList");
@@ -224,28 +37,7 @@
 
   let editingId = null;
   let allProjects = [];
-
-  onAuthStateChanged(auth, (user) => {
-    document.getElementById("userEmail").textContent = user?.email || "Misafir";
-  });
-
-  async function addWithTS(colRef, data) {
-    return addDoc(colRef, { ...data, createdAt: serverTimestamp() });
-  }
-  async function updateById(colRef, id, data) {
-    return updateDoc(doc(colRef, id), data);
-  }
-  async function deleteById(colRef, id) {
-    return deleteDoc(doc(colRef, id));
-  }
-
-  async function load() {
-    projectList.innerHTML = "Yükleniyor...";
-    const q = query(colProjects, orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
-    allProjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    render();
-  }
+  let currentRole = "none";
 
   function escapeHtml(str) {
     return String(str ?? "").replace(/[&<>"']/g, m => ({
@@ -253,8 +45,24 @@
     }[m]));
   }
 
+  async function getRoleOfUser(uid) {
+    // rules’larındaki userDoc ile aynı yer: users/{uid}
+    const uref = doc(db, "users", uid);
+    const snap = await getDoc(uref);
+    if (!snap.exists()) return "none";
+    return snap.data().role || "none";
+  }
+
+  async function load() {
+    projectList.innerHTML = "Yükleniyor...";
+    const q = query(projectsRef, orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    allProjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }
+
   function render() {
-    const s = searchInput.value.toLowerCase().trim();
+    const s = (searchInput.value || "").toLowerCase().trim();
     const ft = filterType.value;
 
     const filtered = allProjects.filter(p => {
@@ -267,10 +75,12 @@
       return matchSearch && matchType;
     });
 
-    if (filtered.length === 0) {
+    if (!filtered.length) {
       projectList.innerHTML = `<div class="row"><div>Sonuç yok</div></div>`;
       return;
     }
+
+    const canEdit = (currentRole === "admin");
 
     projectList.innerHTML = filtered.map(p => `
       <div class="row">
@@ -283,21 +93,26 @@
           </span>
         </div>
         <div class="actions">
-          <button class="btn ghost" data-edit="${p.id}">Düzenle</button>
-          <button class="btn red" data-del="${p.id}">Sil</button>
+          ${canEdit ? `<button class="btn ghost" data-edit="${p.id}">Düzenle</button>` : ``}
+          ${canEdit ? `<button class="btn red" data-del="${p.id}">Sil</button>` : ``}
         </div>
       </div>
     `).join("");
 
-    projectList.querySelectorAll("[data-edit]").forEach(btn => {
-      btn.onclick = () => openEdit(btn.dataset.edit);
-    });
-    projectList.querySelectorAll("[data-del]").forEach(btn => {
-      btn.onclick = () => onDelete(btn.dataset.del);
-    });
+    if (canEdit) {
+      projectList.querySelectorAll("[data-edit]").forEach(btn => {
+        btn.onclick = () => openEdit(btn.dataset.edit);
+      });
+      projectList.querySelectorAll("[data-del]").forEach(btn => {
+        btn.onclick = () => onDelete(btn.dataset.del);
+      });
+    }
   }
 
+  // Form
   addBtn.onclick = () => {
+    if (currentRole !== "admin") return alert("Bu işlem için admin yetkisi gerekli.");
+
     editingId = null;
     formTitle.textContent = "Yeni Proje";
 
@@ -315,18 +130,23 @@
   };
 
   saveBtn.onclick = async () => {
+    if (currentRole !== "admin") return alert("Bu işlem için admin yetkisi gerekli.");
+
     const data = {
-      name: nameInput.value.trim(),
+      name: (nameInput.value || "").trim(),
       type: typeInput.value,
-      location: locationInput.value.trim(),
-      client: clientInput.value.trim(),
+      location: (locationInput.value || "").trim(),
+      client: (clientInput.value || "").trim(),
       isActive: isActiveInput.value === "true"
     };
 
     if (!data.name) return alert("Proje adı boş olamaz");
 
-    if (editingId) await updateById(colProjects, editingId, data);
-    else await addWithTS(colProjects, data);
+    if (editingId) {
+      await updateDoc(doc(db, "projects", editingId), data);
+    } else {
+      await addDoc(projectsRef, { ...data, createdAt: serverTimestamp() });
+    }
 
     formCard.style.display = "none";
     await load();
@@ -350,15 +170,28 @@
 
   async function onDelete(id) {
     if (!confirm("Projeyi silmek istiyor musun?")) return;
-    await deleteById(colProjects, id);
+    await deleteDoc(doc(db, "projects", id));
     await load();
   }
 
+  // Filtre
   searchInput.addEventListener("input", render);
   filterType.addEventListener("change", render);
 
-  load();
-</script>
+  // ✅ Auth hazır olunca email + role al, sonra yükle
+  onAuthStateChanged(auth, async (user) => {
+    const pill = document.getElementById("userEmail");
+    if (!user) return; // requireAuth zaten yönlendirmeli
 
-</body>
-</html>
+    if (pill) pill.textContent = user.email;
+
+    currentRole = await getRoleOfUser(user.uid);
+
+    // admin değilse proje ekleme butonunu gizle (sadece okuyabilir)
+    if (currentRole !== "admin") {
+      addBtn.style.display = "none";
+    }
+
+    await load();
+  });
+</script>
